@@ -7,6 +7,18 @@ function time(seconds: number) {
   return Math.floor(seconds / 60) + ':' + String(Math.floor(seconds % 60)).padStart(2, '0')
 }
 
+function seekWhenAvailable(audio: HTMLAudioElement | null, target: number | null) {
+  if (!audio || target === null) return false
+  // Metadata can arrive before the browser has a seekable media range.
+  for (let i = 0; i < audio.seekable.length; i++) {
+    if (target >= audio.seekable.start(i) && target <= audio.seekable.end(i)) {
+      audio.currentTime = target
+      return true
+    }
+  }
+  return false
+}
+
 export default function CallRecording({ path, messages, evidenceId, onSelect }: {
   path: string; messages: Message[]; evidenceId?: string; onSelect: (id: string) => void
 }) {
@@ -21,8 +33,7 @@ export default function CallRecording({ path, messages, evidenceId, onSelect }: 
     if (evidenceStart === undefined) { pending.current = null; return }
     if (requested.current === evidenceId) { requested.current = null; return }
     pending.current = evidenceStart
-    if (player.current && player.current.readyState >= 1) {
-      player.current.currentTime = evidenceStart
+    if (seekWhenAvailable(player.current, pending.current)) {
       pending.current = null
     }
   }, [evidenceId, evidenceStart])
@@ -33,26 +44,23 @@ export default function CallRecording({ path, messages, evidenceId, onSelect }: 
     requested.current = anchor.message_id
     onSelect(anchor.message_id)
     pending.current = anchor.start_seconds
-    if (audio.readyState >= 1) {
-      audio.currentTime = anchor.start_seconds
-      pending.current = null
-    }
     if (audioError) {
       setAudioError(false)
       audio.load()
     }
+    if (seekWhenAvailable(audio, pending.current)) pending.current = null
     void audio.play().catch(() => { if (audio.error) setAudioError(true) })
+  }
+
+  function applyPendingSeek() {
+    if (seekWhenAvailable(player.current, pending.current)) pending.current = null
   }
 
   return <section className="cq-card cv-recording" aria-label="Запись звонка">
     <h3><Headphones size={16} aria-hidden="true" /> Запись звонка</h3>
     <audio ref={player} controls preload="none" src={path + '/audio'} aria-label="Прослушать разговор"
-      onError={() => setAudioError(true)} onLoadedMetadata={() => {
-        if (player.current && pending.current !== null) {
-          player.current.currentTime = pending.current
-          pending.current = null
-        }
-      }} />
+      onError={() => setAudioError(true)} onLoadedMetadata={applyPendingSeek}
+      onCanPlay={applyPendingSeek} onProgress={applyPendingSeek} />
     {audioError && <p role="alert">Запись не загрузилась. <button className="cv-link" onClick={() => {
       setAudioError(false); player.current?.load()
     }}>Загрузить запись снова</button></p>}
