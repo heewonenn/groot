@@ -10,7 +10,9 @@
 
 Звонок `p4-ru-001` получил 92,50 по транскрипту. Первый запуск завершился по тайм-ауту обеих моделей. Повтор через OpenRouter занял 105,9 секунды. Ссылки по всем восьми критериям и итог с учётом N/A проверены. В плеере проверен переход к реплике `m0027` на 140,25 секунды. По критерию 06 модель сняла баллы за формулировки из фрагмента `m0026–m0043`. Обе процитированные фразы есть в транскрипте. Проверяющему стоит прослушать этот участок, чтобы отличить речь оператора от возможной ошибки расшифровки.
 
-**Следующее действие** — открыть `p1-ru-014` и пройти шаг 3 в таблице ниже. В базе пока 4 оценённых диалога из 65. Для общего файла DEV используйте исходные версии чек-листов.
+**Замена критерия проверена на DEV.** В редакторе изменили только инструкцию критерия 01 и опубликовали `freedom-chat@2`. На одном чате `p1-ru-014` одна и та же модель Dots сослалась на `m0010`. С требованием представиться ответ был «Нет» (итог 81,25), после публикации правила о приветствии ответ стал «Да» (93,75). На компьютере команды доступны [исходная карточка](http://127.0.0.1:5173/analysis?group_id=DEV&conversation_id=p1-ru-014&evaluation_id=d6e2b204-9790-4169-9522-bec5722038f5) и [новая карточка](http://127.0.0.1:5173/analysis?group_id=DEV&conversation_id=p1-ru-014&evaluation_id=54f2fea8-424f-49d8-8749-847a8c0c253e). Для сдачи используется исходная версия.
+
+**Пересмотр.** На учебном английском чате через интерфейс оспорили критерий 04, сохранили решение с обоснованием и проверили результат после перезагрузки страницы. Исходная оценка 85,38, финальная 93,08. В рабочих карточках английского чата и звонка открыты обращения: для разрешения нужны сведения о закрытом счёте и прослушивание спорной формулировки. [Официальный FAQ об открытии счёта](https://fbroker.kz/faq/question/how-to-open-an-account-1907) описывает случай другого действующего счёта.
 
 | Порядок | Что делаем | Как понимаем, что готово |
 | --- | --- | --- |
@@ -47,7 +49,7 @@ pwsh -STA -NoProfile -File scripts/start-google-pair.ps1 -KeyDialog
 $python = '.\.venv\Scripts\python.exe'
 $model = (Invoke-RestMethod http://127.0.0.1:8765/api/model-status).model
 & $python -m backend.app.submission status dev
-& $python -m backend.app.submission run dev --model $model --mode external_api
+& $python -m backend.app.submission run dev --model $model --mode external_api --compact
 & $python -m backend.app.submission check dev
 ```
 
@@ -57,7 +59,7 @@ $model = (Invoke-RestMethod http://127.0.0.1:8765/api/model-status).model
 $group = Read-Host 'Выданный организаторами group_id'
 $encoded = [Uri]::EscapeDataString($group)
 Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8765/api/groups/$encoded/import"
-& $python -m backend.app.submission run prod --group-id $group --model $model --mode external_api
+& $python -m backend.app.submission run prod --group-id $group --model $model --mode external_api --compact
 & $python -m backend.app.submission check prod --group-id $group
 ```
 

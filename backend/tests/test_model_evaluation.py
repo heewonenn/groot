@@ -167,6 +167,12 @@ def test_bad_answers_one_correction_then_fail(setup, issue):
         evaluator("bad", setup[0], setup[1], {})
     assert len(provider.requests) == 2
     assert provider.requests[1][1]["correction"]["error_code"].startswith("answer_")
+    if issue == "scale_range":
+        hint = provider.requests[1][1]["correction"]["validation_hint"]
+        assert value["criteria"][5]["criterion_id"] in hint
+    if issue == "foreign_message":
+        hint = provider.requests[1][1]["correction"]["validation_hint"]
+        assert hint == "Evidence outside conversation"
     run = setup[2].get("bad")
     assert run["result"] is None
     assert run["metadata"]["status"] == "failed"

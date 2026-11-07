@@ -175,8 +175,19 @@ def validate_result(result: dict, payload: dict, version: ChecklistVersion) -> d
     conversation = payload["conversation"]
     try:
         card = build_card(result["evaluation_id"], conversation, version, result)
-    except ValueError, ChecklistError, ValidationError:
+    except ChecklistError as exc:
+        # These messages come from our calculator and may name a saved criterion.
+        raise ModelError("answer_rules_invalid", correction_hint=exc.message) from None
+    except ValidationError:
         raise ModelError("answer_rules_invalid") from None
+    except ValueError as exc:
+        known = {
+            "Missing, unknown or duplicate criterion", "Evidence outside conversation",
+            "Invalid evidence range", "Missing evidence", "Missing N/A justification",
+            "Invalid unresolved answer", "No explanation",
+        }
+        hint = str(exc) if str(exc) in known else None
+        raise ModelError("answer_rules_invalid", correction_hint=hint) from None
     except SchemaError:
         raise ModelError("answer_schema_invalid") from None
     messages = conversation["transcript"]

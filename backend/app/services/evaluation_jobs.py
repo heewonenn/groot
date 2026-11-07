@@ -1,6 +1,7 @@
 """Single-process, durable evaluation jobs over ZIP-compatible group/conversation IDs."""
 
 import json
+import os
 import sqlite3
 from collections import Counter
 from collections.abc import Callable
@@ -70,6 +71,9 @@ class JobRunner:
         return self.evaluator is not None and self.pool is not None
 
     def start(self) -> None:
+        workers = int(os.getenv("CQA_EVALUATION_WORKERS", "4"))
+        if not 1 <= workers <= 8:
+            raise ValueError("CQA_EVALUATION_WORKERS must be between 1 and 8")
         with closing(connect()) as db, db:
             db.executescript(DDL)
             db.execute(
@@ -77,7 +81,7 @@ class JobRunner:
                    finished_at=? WHERE status IN ('queued','running')""",
                 (_now(),),
             )
-        self.pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="cqa-evaluation")
+        self.pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="cqa-evaluation")
 
     def stop(self) -> None:
         if self.pool:
