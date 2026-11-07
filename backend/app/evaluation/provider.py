@@ -11,8 +11,12 @@ import httpx
 class ModelError(Exception):
     """Controlled codes only: never provider bodies, transcript text or keys."""
 
-    def __init__(self, code: str, *, retryable: bool = False, usage: dict | None = None):
+    def __init__(
+        self, code: str, *, retryable: bool = False, usage: dict | None = None,
+        correction_hint: str | None = None,
+    ):
         self.code, self.retryable, self.usage = code, retryable, usage
+        self.correction_hint = correction_hint
         super().__init__(code)
 
 

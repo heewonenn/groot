@@ -11,6 +11,7 @@ from backend.app.team_data import connect
 
 BASE_CHECKLIST = {"agent chat": "freedom-chat@1", "voice call": "freedom-call@1"}
 FAILURES = {
+    "provider_rate_limit": "Провайдер ограничил число запросов (HTTP 429).",
     "evaluation_timeout": "Модель не успела вернуть ответ.",
     "evaluation_failed": "Не удалось получить и проверить ответ модели.",
     "server_restart": "Обработка диалога прервана при перезапуске сервера.",

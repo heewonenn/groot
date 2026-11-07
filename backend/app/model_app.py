@@ -3,16 +3,32 @@
 import math
 import os
 import sqlite3
+from copy import copy
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.evaluation.contract import PROMPT_VERSION, evidence_quotes
 from backend.app.evaluation.engine import ModelEvaluator
+from backend.app.evaluation.gemini import GEMINI_MODEL, GeminiGenerateContent
 from backend.app.evaluation.knowledge import Knowledge
-from backend.app.evaluation.provider import OpenAIResponses
+from backend.app.evaluation.openrouter import OpenRouterChat
+from backend.app.evaluation.openrouter_local import load_profile, profile_path
+from backend.app.evaluation.provider import OpenAIResponses, Provider
 from backend.app.evaluation.store import RunStore
 from backend.app.main import create_app
-from backend.app.team_data import DataRoute
+from backend.app.team_data import ROOT, DataRoute
+
+KEY_ENV = {
+    "openai": "OPENAI_API_KEY", "gemini": "GEMINI_API_KEY", "openrouter": "OPENROUTER_API_KEY",
+}
+
+
+class LocalGoogleModel(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+    model: str = Field(pattern=r"^gemini-[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
+    context_tokens: int = Field(ge=1024, le=2_000_000)
 
 
 def _number(name: str, default: str, low: float, high: float) -> float:
@@ -22,15 +38,38 @@ def _number(name: str, default: str, low: float, high: float) -> float:
     return value
 
 
+def _provider(name: str, model: str, key: str, max_output: int) -> Provider:
+    if name == "gemini":
+        return GeminiGenerateContent(
+            model, key, max_output_tokens=max_output,
+            thinking_level=os.getenv(
+                "CQA_GEMINI_THINKING_LEVEL", "low" if model == GEMINI_MODEL else "medium",
+            ),
+        )
+    if name == "openrouter":
+        return OpenRouterChat(model, key, max_output_tokens=max_output)
+    return OpenAIResponses(model, key, max_output_tokens=max_output)
+
+
 def configured_evaluator() -> tuple[ModelEvaluator | None, str | None]:
     if os.getenv("CQA_MODEL_ENABLED", "").lower() not in {"1", "true"}:
         return None, "model_disabled"
-    if os.getenv("CQA_MODEL_PROVIDER", "openai") != "openai":
+    provider_name = os.getenv("CQA_MODEL_PROVIDER", "openai").strip()
+    fallback_name = os.getenv("CQA_FALLBACK_PROVIDER", "").strip()
+    if provider_name not in KEY_ENV or fallback_name not in {"", "gemini", "openrouter"}:
         return None, "provider_not_supported"
-    model, key = os.getenv("CQA_MODEL", "").strip(), os.getenv("OPENAI_API_KEY", "").strip()
+    model = os.getenv("CQA_MODEL", GEMINI_MODEL if provider_name == "gemini" else "").strip()
+    key = os.getenv(KEY_ENV[provider_name], "").strip()
     if not model or not key or not os.getenv("CQA_CONTEXT_TOKENS"):
         return None, "model_configuration_missing"
     try:
+        context_limit = int(_number("CQA_CONTEXT_TOKENS", "0", 1024, 2_000_000))
+        if provider_name == "gemini" and os.getenv("CQA_GOOGLE_CATALOG_RESOLVED") != "1":
+            database = Path(os.getenv("CQA_DB_PATH") or ROOT / "data" / "cqa.sqlite3")
+            profile = database.with_name("google-model.local.json")
+            if profile.is_file():
+                selection = LocalGoogleModel.model_validate_json(profile.read_bytes())
+                model, context_limit = selection.model, selection.context_tokens
         knowledge_path = os.getenv("CQA_KNOWLEDGE_PATH")
         knowledge = Knowledge.read(knowledge_path) if knowledge_path else None
         rates = {}
@@ -39,18 +78,29 @@ def configured_evaluator() -> tuple[ModelEvaluator | None, str | None]:
             rates[f"{side}_usd_per_million"] = (
                 _number(name, "0", 0, 1_000_000) if os.getenv(name) else None
             )
+        max_output = int(_number("CQA_MAX_OUTPUT_TOKENS", "12000", 512, 32000))
+        provider = _provider(provider_name, model, key, max_output)
+        fallback = fallback_context = None
+        if fallback_name:
+            fallback_model = os.getenv("CQA_FALLBACK_MODEL", "").strip()
+            fallback_key = os.getenv(KEY_ENV[fallback_name], "").strip()
+            if not (fallback_model and fallback_key and os.getenv("CQA_FALLBACK_CONTEXT_TOKENS")):
+                return None, "model_configuration_missing"
+            if (fallback_name, fallback_model) == (provider_name, model):
+                return None, "model_configuration_invalid"
+            fallback_context = int(_number("CQA_FALLBACK_CONTEXT_TOKENS", "0", 1024, 2_000_000))
+            fallback = _provider(fallback_name, fallback_model, fallback_key, max_output)
+        use_flash_38 = provider_name == "gemini" and model == GEMINI_MODEL
         evaluator = ModelEvaluator(
-            OpenAIResponses(
-                model,
-                key,
-                max_output_tokens=int(_number("CQA_MAX_OUTPUT_TOKENS", "12000", 512, 32000)),
-            ),
+            provider,
             RunStore(),
+            fallback_provider=fallback,
+            fallback_context_token_limit=fallback_context,
             knowledge=knowledge,
-            request_timeout=_number("CQA_REQUEST_TIMEOUT", "60", 1, 120),
-            total_timeout=_number("CQA_TOTAL_TIMEOUT", "150", 1, 360),
+            request_timeout=_number("CQA_REQUEST_TIMEOUT", "110" if use_flash_38 else "60", 1, 120),
+            total_timeout=_number("CQA_TOTAL_TIMEOUT", "240" if use_flash_38 else "150", 1, 360),
             max_input_chars=int(_number("CQA_MAX_INPUT_CHARS", "180000", 1000, 500000)),
-            context_token_limit=int(_number("CQA_CONTEXT_TOKENS", "0", 1024, 2_000_000)),
+            context_token_limit=context_limit,
             **rates,
         )
         return evaluator, None
@@ -58,7 +108,9 @@ def configured_evaluator() -> tuple[ModelEvaluator | None, str | None]:
         return None, "model_configuration_invalid"
 
 
-def create_model_app(evaluator: ModelEvaluator | None, reason: str | None = None):
+def create_model_app(
+    evaluator: ModelEvaluator | None, reason: str | None = None, *, local_fallback: bool = False,
+):
     try:
         # A restart can disable the provider while an earlier audit is still running.
         # Recover local history independently of model readiness; never resume inference.
@@ -66,17 +118,41 @@ def create_model_app(evaluator: ModelEvaluator | None, reason: str | None = None
     except (sqlite3.Error, OSError):
         # Match the shared app: health remains available when storage is offline.
         pass
-    application = create_app(evaluator)
+    def for_next_job() -> ModelEvaluator | None:
+        if not local_fallback or evaluator is None:
+            return evaluator
+        try:
+            route, context = load_profile(profile_path(), evaluator.provider.max_output_tokens)
+        except (OSError, ValueError, KeyError, TypeError):
+            return evaluator
+        # Each running job keeps its own route if the operator connects or removes a profile.
+        selected = copy(evaluator)
+        selected.fallback_provider = route
+        selected.fallback_context_token_limit = context
+        return selected
+
+    def evaluate(eid: str, conversation: dict, rules: dict, settings: dict) -> dict:
+        selected = for_next_job()
+        assert selected is not None  # Registered only when the primary evaluator exists.
+        return selected(eid, conversation, rules, settings)
+
+    application = create_app(evaluate if evaluator is not None and local_fallback else evaluator)
     router = APIRouter(prefix="/api", tags=["model-audit"], route_class=DataRoute)
 
     @router.get("/model-status")
     def status() -> dict:
+        selected = for_next_job()
         return {
             "configured": evaluator is not None,
             "ready": evaluator is not None and application.state.jobs.available,
             "reason": reason,
             "provider": evaluator.provider.name if evaluator else None,
             "model": evaluator.provider.model if evaluator else None,
+            "fallback": (
+                {"provider": selected.fallback_provider.name,
+                 "model": selected.fallback_provider.model}
+                if selected and selected.fallback_provider else None
+            ),
             "prompt_version": PROMPT_VERSION,
             "audio_analysed": False,
             "knowledge_version": (
@@ -117,4 +193,9 @@ def create_model_app(evaluator: ModelEvaluator | None, reason: str | None = None
 
 def create_configured_app():
     evaluator, reason = configured_evaluator()
-    return create_model_app(evaluator, reason)
+    reserve = os.getenv("CQA_FALLBACK_PROVIDER", "").strip()
+    # An explicitly configured environment route takes precedence over desktop setup.
+    local = evaluator is not None and evaluator.provider.name == "gemini" and (
+        not reserve or (reserve == "gemini" and os.getenv("CQA_GOOGLE_CATALOG_RESOLVED") == "1")
+    )
+    return create_model_app(evaluator, reason, local_fallback=local)

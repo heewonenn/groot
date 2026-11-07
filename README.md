@@ -1,185 +1,87 @@
-# CQA — Conversation Quality Analytics
+# CQA — контроль качества диалогов Freedom Broker
 
-A minimal Windows AI/ML workspace with FastAPI, React, isolated dependencies,
-Codex skills, native agent roles, and API/browser smoke tests. The existing
-repository root is used directly rather than nesting another `hackathon-ai` directory.
+**WE ARE GROOT** · Conversation Quality Analytics
 
-Product requirements: [Conversation Quality Analytics technical specification (Russian)](docs/TECHNICAL_SPECIFICATION.md).
+CQA помогает специалисту по качеству проверить работу оператора в чате или звонке. По каждому критерию видно, какой ответ дала модель, на какие реплики она опиралась и сколько баллов начислил сервер. Если оператор оспаривает вывод, проверяющий может изменить оценку и объяснить решение. Исходная оценка остаётся в истории.
 
-The shared API now follows `CQA-team.zip`: port **8765**, `message_id` references,
-and common chat **p1-ru-001**. The ZIP data router and participant 1 checklist
-router run in the same FastAPI app. See [ZIP integration](docs/ZIP_INTEGRATION.md).
+## Запуск на Windows
 
-Participant 4 adds the [dialogue and recording screen](http://127.0.0.1:5173/conversations),
-verified playback positions and persistent evaluation jobs to this app.
-See [the participant 4 handoff](docs/PARTICIPANT_4_HANDOFF.md) for integration and verification.
+Понадобятся Windows x64, Git, PowerShell 7 (`pwsh`), Python 3.14 с командой `py` и Node.js 24 LTS с npm. Для первого запуска нужен интернет, чтобы скачать зависимости и браузер для тестов. Учебный сценарий работает без ключа модели.
 
-Official submissions for team **WE ARE GROOT** are generated in `results/dev/` and
-`results/prod/`. See [the submission commands and pre-push checks](results/README.md).
-
-Participant 3 adds the [quality workspace](http://127.0.0.1:5173/analysis),
-evidence navigation, persistent appeals and original/final score history.
-Start with the [Windows launch and participant 3 guide](docs/PARTICIPANT_3_GUIDE.md).
-The optional synthetic demo is enabled explicitly; it is not a model evaluation.
-Participant 2 is now integrated with this workspace: explicit evaluation launches,
-saved checklist versions, progress/retry, source quotes and model run metadata.
-See [model integration and remaining configuration](docs/PARTICIPANT_3_MODEL_INTEGRATION.md).
-
-Team handoff: [four-participant implementation plan](docs/TEAM_IMPLEMENTATION_PLAN.md) and [shared data contracts and fixtures](docs/contracts/README.md). DEV examples under `data/examples/team-zip-v1` are local and ignored by Git; public examples are synthetic and are not model-quality labels.
-
-Participant 1 is implemented: checklist editor, immutable versions, SQLite persistence
-and the shared score calculator. See [the participant 1 handoff (Russian)](docs/PARTICIPANT_1_HANDOFF.md)
-for API examples, ownership and integration instructions for the other three participants.
-For a plain-language explanation, manual checks and Codex skill examples, read
-[the participant 1 user guide (Russian)](docs/PARTICIPANT_1_GUIDE.md).
-
-## Как работаем вчетвером
-
-Общий репозиторий команды — [heewonenn/groot](https://github.com/heewonenn/groot).
-Ветка `main` содержит согласованную сборку. У каждого участника своя локальная
-копия этого репозитория и отдельная ветка для своей задачи. Название папки на
-компьютере может отличаться: важно, чтобы `git remote -v` указывал на этот репозиторий.
-
-После публикации первой сборки участники 2–4 начинают с её копии:
+**1. Установите проект.** Команда клонирует ветку с описанной здесь поддержкой Gemini и OpenAI. Если эта версия уже открыта локально, выполните только последнюю строку из корня репозитория.
 
 ```powershell
-git clone https://github.com/heewonenn/groot.git
+git clone --branch codex/participant-2 https://github.com/heewonenn/groot.git
 cd groot
-git switch -c codex/participant-2
 pwsh -NoProfile -File scripts/setup.ps1
 ```
 
-В команде выше участник подставляет свой номер. Участнику 1, у которого уже есть
-эта рабочая папка, повторно клонировать её не нужно.
-
-| Участник | Рабочая ветка | Область |
-| --- | --- | --- |
-| 1 | `codex/participant-1` | Чек-листы, их версии и общий расчёт |
-| 2 | `codex/participant-2` | Модель, проверка ответов и доказательств |
-| 3 | `codex/participant-3` | Карточка диалога и апелляции |
-| 4 | `codex/participant-4` | Данные, аудио, пакетная обработка и интеграция |
-
-Работать можно параллельно по [границам файлов и задач](docs/TEAM_IMPLEMENTATION_PLAN.md).
-Перед изменением общих полей API или правил расчёта участники согласуют изменение.
-Готовые изменения отправляются в свою ветку и оформляются pull request в `main`.
-Участник 4 проверяет совместную работу и объединяет изменения после проверки.
-При работе через Codex отправка в GitHub требует разрешения владельца согласно `AGENTS.md`.
-
-Если часть кода уже написана в другой папке, сохраните ту папку и перенесите
-нужные изменения в свою ветку общей копии. Не заменяйте всю сборку очередным ZIP.
-После объединения чужих изменений обновляйте свою рабочую ветку из `main`,
-предварительно сохранив собственную работу коммитом.
-
-Стартовые данные и API следуют `CQA-team.zip`: общий чат `p1-ru-001`, звонок
-`p4-ru-001`, привязка `group_id + conversation_id + message_id`, сервер 8765.
-Это одна локальная программа у каждого участника; одинаковый порт не означает
-общий сервер в интернете. Импорт DEV каждый настраивает по
-[инструкции подключения](docs/ZIP_INTEGRATION.md). Данные DEV, SQLite, ключи,
-`.venv` и `node_modules` в Git не передаются; зависимости устанавливает setup.
-
-## Start developing
-
-Open this folder in VS Code. In two terminals at the repository root:
+**2. Создайте учебные карточки и запустите API** в первом терминале из корня проекта. Повторная загрузка учебных примеров сохраняет уже поданные апелляции.
 
 ```powershell
-.\.venv\Scripts\python.exe -m uvicorn backend.app.model_app:create_configured_app --factory --reload --host 127.0.0.1 --port 8765
+.\.venv\Scripts\python.exe -m backend.app.participant3_demo
+.\.venv\Scripts\python.exe -m uvicorn backend.app.model_app:create_configured_app --factory --host 127.0.0.1 --port 8765
 ```
+
+**3. Запустите интерфейс** во втором терминале из корня проекта.
 
 ```powershell
 cd frontend
-npm run dev
+npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
-Open http://127.0.0.1:5173. The page should say **API connected**.
-Open http://127.0.0.1:5173/checklists for the checklist editor and manual arithmetic check.
-API docs: http://127.0.0.1:8765/docs. Stop each server with Ctrl+C.
-Alternatively run the `Backend: dev` and `Frontend: dev` VS Code tasks.
-The factory includes all four modules. A provider is disabled until explicitly
-configured; configuration alone does not create a model request. The original
-`backend.app.main:app` remains available without the model audit routes.
-No paid API, external database service, dataset or model is required. The checklist
-module creates a local SQLite database at `data/cqa.sqlite3` on its first API request;
-this file is ignored by Git. Set `CQA_DB_PATH` in the backend process environment to
-use another private path. The starter health page does not require the database.
+Оставьте оба терминала открытыми. Интерфейс работает на порту 5173, FastAPI — на 8765. [Открыть приложение](http://127.0.0.1:5173/) · [Документация API](http://127.0.0.1:8765/docs)
 
-## Reproduce and verify
+## Что проверить жюри за пять минут
 
-Requires Windows, Python 3.14, and Node 24 LTS (or a compatible newer LTS).
-The Python lock was generated and tested on Windows x64/Python 3.14; it contains
-Windows-specific dependencies and is not a cross-platform lock.
+1. **Проверьте доказательство.** Откройте учебный чат `synthetic-contract-001` группы `SYNTHETIC`. В свежей карточке исходный итог **85,38 из 100**. Выберите критерий № 4 «Корректная и полная консультация» и нажмите «Перейти к фрагменту». Интерфейс выделит реплику `m0006`, по которой можно проверить объяснение. [Открыть учебную карточку](http://127.0.0.1:5173/analysis?group_id=SYNTHETIC&conversation_id=synthetic-contract-001&evaluation_id=demo-synthetic-contract-001)
+2. **Пересмотрите один критерий.** Нажмите «Оспорить оценку», введите комментарий и нажмите «Сохранить обращение». В решении проверяющего выберите «Изменить ответ», установите **20** вместо **15**, заполните «Обоснование решения» и нажмите «Применить решение». Финальный итог станет **93,08**, исходный останется **85,38**. Обновите страницу и откройте историю решения.
+3. **Измените правила через интерфейс.** В редакторе откройте черновик чатового чек-листа. Например, замените инструкцию критерия № 1 на «Спросил ли оператор в первом ответе, где клиент работает с сервисом — на сайте или в мобильном приложении?». Нажмите «Сохранить версию». При подключённой модели вернитесь к тому же диалогу, нажмите «Обновить версии», выберите новую версию и нажмите «Оценить диалог». Сравните ответ и доказательство с прежней карточкой. Каждая оценка сохраняет свою версию правил. [Открыть редактор](http://127.0.0.1:5173/checklists)
+
+Первые два шага используют заранее подготовленные учебные ответы и настоящий серверный расчёт. Для проверки смысла нового правила в третьем шаге нужен доступ к выбранной модели.
+
+## Как диалог превращается в оценку
+
+| Этап | Что делает система |
+| --- | --- |
+| Импорт | Принимает группу диалогов с готовыми транскриптами на русском, казахском и английском. Сохраняет порядок, роли и время. Каждая реплика получает номер в полном разговоре, включая сообщения бота и системы. |
+| Чек-лист | Редактор позволяет создавать критерии, менять инструкции, веса, тип ответа, ступени шкалы и условия N/A. Для чатов и звонков есть исходные чек-листы из восьми критериев. |
+| Оценка | Сервер передаёт модели транскрипт и опубликованную версию правил. Модель оценивает действия оператора с учётом контекста и возвращает ответ, объяснение и ссылки на реплику или диапазон. Сервер проверяет допустимые ответы и существование доказательств. |
+| Расчёт | Для каждого применимого критерия сервер умножает вес на нормированное значение ответа. Итог равен `100 × сумма начисленных баллов / сумма применимых весов` и округляется до сотых. Если критерий неприменим (N/A), его вес исключается из обеих сумм. Например, в учебном чате 55,50 балла при сумме применимых весов 65 дают 85,38 из 100. Грубая ошибка отмечается отдельным флагом. |
+| Проверка человеком | Из карточки можно открыть реплику или проверенный фрагмент записи, подать апелляцию и увидеть причину пересмотра. Сервер пересчитывает итог по правилам исходной версии и хранит первоначальный результат отдельно. |
+
+## Технологии и устройство проекта
+
+| Компонент | Реализация |
+| --- | --- |
+| Интерфейс | React, TypeScript, Vite и Axios. В `frontend/src/features/` находятся редактор чек-листов, диалоги с аудиоплеером и рабочее место проверяющего. |
+| Сервер и хранение | Python, FastAPI, Pydantic и SQLite. API принимает диалоги и решения. Очередь сохраняет состояние заданий, результаты и ошибки по каждому диалогу. Локальная база по умолчанию — `data/cqa.sqlite3`. |
+| Модель | На DEV команда использует Gemini 3.8 Flash через Google и резервную Dots через OpenRouter (`dots-studio/dots-3-note-preview:free`). При ограничении квоты или временном сбое резерв получает тот же транскрипт и правила. Сервер проверяет ответ и фиксирует модель, которая его дала. |
+| Баллы и экспорт | `backend/app/services/scoring.py` рассчитывает баллы для автоматической оценки и пересмотра. `backend/app/submission.py` формирует и проверяет JSON для сдачи. |
+| Автоматические проверки | Pytest проверяет сервер и расчёты. Playwright запускает Chromium и проверяет действия пользователя в приложении. |
+
+## Данные, модель и выгрузка
+
+**Данные.** В DEV организаторов 65 диалогов — 60 чатов и 5 звонков. В репозитории есть синтетические примеры и схема данных. Для импорта DEV задайте адрес организаторов в `CQA_SOURCE_URL` в терминале сервера **до запуска**, откройте «Диалоги», укажите группу `DEV` и нажмите «Импортировать набор». Также поддерживается импорт локального JSON-снимка. [Подключение источника](docs/ZIP_INTEGRATION.md) · [Контракт данных](docs/contracts/README.md)
+
+**Аудио.** При доступе к DEV можно проверить плеер на звонке `p4-ru-001`. Выберите фрагмент реплики `m0027` — запись перейдёт к **2 мин 20 с**. Для пяти записей сверены 17 фрагментов. Учебный звонок поставляется только с текстом. [Открыть реплику после импорта DEV](http://127.0.0.1:5173/conversations?group_id=DEV&conversation_id=p4-ru-001&message_id=p4-ru-001%3Am0027) · [Как сверены позиции](docs/PARTICIPANT_4_AUDIO.md)
+
+**Реальная оценка.** Перед запуском API задайте в его терминале `CQA_MODEL_ENABLED=1`, `CQA_MODEL_PROVIDER` (`gemini` или `openai`), `CQA_CONTEXT_TOKENS` для выбранной модели и серверный ключ `GEMINI_API_KEY` или `OPENAI_API_KEY`. Для OpenAI обязателен также `CQA_MODEL`. Сервер читает переменные процесса. Имена параметров приведены в `.env.example`. Проверьте конфигурацию через `GET /api/model-status`. Доступ к провайдеру проверяется при запуске оценки. Для сверки продуктовых фактов можно подключить локальный справочник через `CQA_KNOWLEDGE_PATH`. [Команды настройки и пример справочника](docs/PARTICIPANT_2_HANDOFF.md) · [Параметры окружения](.env.example)
+
+**Сдача.** Экспортёр проверяет идентификаторы диалогов, ответы по восьми исходным критериям, номера реплик и итоговый балл. Файлы формируются после обработки соответствующих наборов по путям `results/dev/results.json` (65 диалогов) и `results/prod/results.json` (10 контрольных чатов). В выгрузку входят исходные автоматические оценки. История апелляций доступна во внутреннем отчёте карточки. [Команды запуска, экспорта и проверки](results/README.md)
+
+Для оценки можно также выбрать конкретную бесплатную модель OpenRouter или явно включить её как резерв при исчерпании квоты и временных сбоях основного сервиса. После переключения в карточке видны использованный сервис, модель и история попыток. [План живой проверки и сдачи для № 2 и № 4](docs/PARTICIPANT_2_4_PLAN.md)
+
+## Проверки и ограничения
+
+Остановите оба локальных сервера клавишами `Ctrl+C` и выполните команду из корня проекта.
 
 ```powershell
-pwsh -NoProfile -File scripts/setup.ps1
 pwsh -NoProfile -File scripts/verify.ps1
-cd frontend
-npm run mcp:check
 ```
 
-`setup.ps1` uses the Python lock, `npm ci`, and both Playwright browser revisions.
-`verify.ps1` runs dependency consistency, Ruff, Pytest, ESLint, strict TypeScript,
-Vite build and Chromium tests against actual backend/frontend servers.
-The tests own ports 8765 and 5173; stop development servers before running them.
-Browser tests use a disposable temporary database and a synthetic conversation.
-The MCP check performs a public documentation search and opens an isolated blank browser.
-It does not log into external accounts or modify browser profiles.
+Скрипт проверяет зависимости, запускает Ruff, Pytest, ESLint, сборку TypeScript/Vite и браузерные сценарии на портах 8765 и 5173.
 
-Select `.venv\Scripts\python.exe` with **Python: Select Interpreter** if VS Code
-keeps an old selection. In notebooks, select the same environment as the kernel.
-Launch Jupyter with `.\.venv\Scripts\python.exe -m jupyter lab --notebook-dir notebooks`.
-
-## Codex
-
-`AGENTS.md` supplies repository instructions; `.agents/skills` holds six discoverable
-skills; `.codex/agents` holds five native roles. For example:
-
-> Use $ml-engineer to inspect this dataset and propose a leakage-safe baseline.
-
-> Have backend_engineer implement the agreed API and frontend_engineer implement
-> the client in separate files; then ask qa_engineer to verify the integration.
-
-On this computer, the default is GPT-6 Astra / Ultra. Named user profiles:
-
-```powershell
-codex -p hackathon-quality
-codex -p hackathon-routine
-```
-
-The routine profile selects GPT-6.1 Sol / Low. Profiles live in
-`%USERPROFILE%\.codex\hackathon-quality.config.toml` and
-`%USERPROFILE%\.codex\hackathon-routine.config.toml`, the format supported by the
-installed CLI. These profiles are local machine settings, not part of the repository.
-For a direct session override:
-
-```powershell
-codex -m gpt-6-astra -c model_reasoning_effort=ultra
-codex -m gpt-6.1-sol -c model_reasoning_effort=low
-```
-
-In VS Code, open the Codex sidebar and use the model/reasoning controls beneath
-the message composer. Select GPT-6 Astra and Ultra for complex work, or GPT-6.1 Sol
-and Low for routine work. An existing chat can retain its own selection; the setup
-does not retroactively change a running conversation.
-
-Official Docs, Figma and Playwright MCP are registered in your user Codex config.
-`.vscode/mcp.json` additionally makes them available to VS Code's MCP client;
-that client can require its own server trust/authentication steps. The Playwright
-user registration points to this checkout; re-register if you move the folder.
-Do not transfer credential files to teammates. See the readiness report for tested scope.
-
-## Project and team conventions
-
-- `backend/app`: API and shared calculator; `backend/tests`: unit, API and smoke tests.
-- `frontend/src`: client; `frontend/tests`: browser tests.
-- `notebooks`: exploration; `data` and `models`: ignored local artifacts.
-- `docs`: audit evidence and decisions; `scripts`: setup and verification.
-- Use `main` and focused `codex/<topic>` branches. Create the first commit before worktrees.
-- Team changes are reviewed locally before synchronization. Publishing or pushing
-  requires the user's authorization. Participant 3 changes are prepared for a
-  pull request from `codex/participant-3` into `main` at the owner's request.
-- Use `.env.example` as a template. Set `APP_NAME` in the process environment if needed;
-  the backend does not automatically load `.env`. `CQA_SOURCE_URL` configures the
-  organizer import; a private `data/team-api/source_url.txt` is the fallback.
-  Never place secrets in frontend variables.
-- Production requires its own API routing; Vite's development proxy is not a deployment.
-
-See [the readiness report](docs/READINESS.md) for versions, results and remaining checks.
+- Автоматическая модель работает по транскрипту. Темп, дикцию и интонацию можно проверить при прослушивании записи. Автоматическая акустическая оценка не реализована.
+- В репозитории нет эталонной разметки DEV и измеренной точности на реальных диалогах. Синтетические тесты проверяют передачу правил, расчёты и работу интерфейса. Смысл вывода проверяют по разговору, а продуктовые факты — по официальному справочнику.
+- Ссылка на публично развёрнутую полную версию в репозитории не указана. Для проверки жюри используйте локальный запуск выше. В `preview/` есть отдельный статический предпросмотр с учебными данными и сохранением решений в браузере. [Описание предпросмотра](preview/README.md)

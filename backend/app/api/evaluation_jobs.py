@@ -1,6 +1,6 @@
 """Evaluation jobs for one immutable ZIP group and a saved checklist version."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -25,6 +25,7 @@ class Settings(BaseModel):
     temperature: float | None = Field(None, ge=0, le=2)
     top_p: float | None = Field(None, ge=0, le=1)
     seed: int | None = None
+    response_layout: Literal["turns-v1"] | None = None
 
 
 class JobRequest(BaseModel):

@@ -3,6 +3,7 @@
 import time
 from datetime import UTC, datetime
 
+from backend.app.evaluation import compact
 from backend.app.evaluation.contract import (
     INSTRUCTIONS,
     PROMPT_VERSION,
@@ -17,6 +18,10 @@ from backend.app.evaluation.knowledge import Knowledge
 from backend.app.evaluation.provider import ModelError, Provider, token_usage
 from backend.app.evaluation.store import RunStore
 
+FAILOVER_ERRORS = {
+    "provider_network", "provider_timeout", "provider_transient", "provider_rate_limit",
+}
+
 
 class ModelEvaluator:
     def __init__(
@@ -29,6 +34,8 @@ class ModelEvaluator:
         total_timeout: float = 150,
         max_input_chars: int = 180000,
         context_token_limit: int | None = None,
+        fallback_provider: Provider | None = None,
+        fallback_context_token_limit: int | None = None,
         input_usd_per_million: float | None = None,
         output_usd_per_million: float | None = None,
     ):
@@ -36,6 +43,8 @@ class ModelEvaluator:
         self.request_timeout, self.total_timeout = request_timeout, total_timeout
         self.max_input_chars = max_input_chars
         self.context_token_limit = context_token_limit
+        self.fallback_provider = fallback_provider
+        self.fallback_context_token_limit = fallback_context_token_limit
         self.rates = input_usd_per_million, output_usd_per_million
 
     def _settings(self, settings: dict) -> None:
@@ -44,6 +53,7 @@ class ModelEvaluator:
             "model": self.provider.model,
             "prompt_version": PROMPT_VERSION,
             "knowledge_version": self.knowledge.source_version_id if self.knowledge else None,
+            "response_layout": compact.LAYOUT,
         }
         # Do not silently ignore a requested model, sampling or audio configuration.
         if any(
@@ -65,6 +75,7 @@ class ModelEvaluator:
             "started_at": datetime.now(UTC).isoformat(),
             "finished_at": None,
             "provider": self.provider.name,
+            "configured_provider": self.provider.name,
             "configured_model": self.provider.model,
             "provider_parameters": getattr(self.provider, "parameters", {}),
             "resolved_model": None,
@@ -84,6 +95,13 @@ class ModelEvaluator:
             "context_token_limit": self.context_token_limit,
             "context_budget_used": None,
         }
+        if self.fallback_provider is not None:
+            metadata["fallback"] = {
+                "provider": self.fallback_provider.name,
+                "model": self.fallback_provider.model,
+                "parameters": getattr(self.fallback_provider, "parameters", {}),
+                "context_token_limit": self.fallback_context_token_limit,
+            }
         self.store.begin(metadata)
         snapshot = None
         try:
@@ -93,8 +111,20 @@ class ModelEvaluator:
             if self.knowledge:
                 query = " ".join(m["text"] for m in payload["conversation"]["transcript"])
                 payload["knowledge"] = self.knowledge.retrieve(query)
-            snapshot = {"instructions": INSTRUCTIONS, "payload": payload}
-            encoded = canonical(payload)
+            short = (compact.CompactAnswers(payload, version)
+                     if settings.get("response_layout") == compact.LAYOUT else None)
+            instructions = compact.INSTRUCTIONS if short else INSTRUCTIONS
+            wire_input = short.input if short else payload
+            schema = short.schema if short else output_schema()
+            if short:
+                metadata.update(
+                    prompt_version=PROMPT_VERSION + "." + compact.LAYOUT,
+                    prompt_hash=digest(instructions), schema_hash=digest(schema),
+                )
+            snapshot = {"instructions": instructions, "payload": payload}
+            if short:
+                snapshot["wire_schema"] = schema
+            encoded = canonical(wire_input)
             metadata["input_fingerprint"] = digest(
                 {
                     **snapshot,
@@ -102,20 +132,15 @@ class ModelEvaluator:
                     "provider": self.provider.name,
                     "model": self.provider.model,
                     "provider_parameters": metadata["provider_parameters"],
-                    "schema": output_schema(),
+                    **({"fallback": metadata["fallback"]} if "fallback" in metadata else {}),
+                    "schema": schema,
                     "knowledge_hash": metadata["knowledge_hash"],
                 }
             )
-            if len(encoded) + len(INSTRUCTIONS) > self.max_input_chars:
+            if len(encoded) + len(instructions) > self.max_input_chars:
                 raise ModelError("input_too_large")
-            # UTF-8 bytes are a deliberately conservative BPE token upper bound.
-            # Reserve space for the response, schema, wrapper and corrective instruction.
-            budget = len((encoded + INSTRUCTIONS + canonical(output_schema())).encode("utf-8"))
-            budget += metadata["provider_parameters"].get("max_output_tokens", 0) + 4096
-            metadata["context_budget_used"] = budget
-            if self.context_token_limit is not None and budget > self.context_token_limit:
-                raise ModelError("context_budget_exceeded")
-            self.store.save(metadata, snapshot)
+            provider = self.provider
+            context_limit = self.context_token_limit
             correction = None
             format_retries = network_retries = 0
             for attempt_number in range(1, 4):
@@ -127,17 +152,31 @@ class ModelEvaluator:
                     if correction is None
                     else canonical(
                         {
-                            "evaluation_input": payload,
-                            "correction": {
-                                "error_code": correction,
-                                "instruction": "Return a complete answer satisfying all rules.",
-                            },
+                            "evaluation_input": wire_input,
+                            "correction": correction,
                         }
                     )
+                )
+                # Recheck the actual request and output allowance against this route's window.
+                # UTF-8 bytes plus a wrapper reserve deliberately overestimate text tokens.
+                parameters = getattr(provider, "parameters", {})
+                budget = len((request + instructions + canonical(schema)).encode("utf-8"))
+                budget += parameters.get("max_output_tokens", 0) + 4096
+                metadata.update(context_token_limit=context_limit, context_budget_used=budget)
+                if context_limit is not None and budget > context_limit:
+                    raise ModelError("context_budget_exceeded")
+                metadata.update(
+                    provider=provider.name, provider_parameters=parameters, resolved_model=None,
+                    generation_mode="live" if provider.live else "demo",
                 )
                 attempt_started = time.monotonic()
                 attempt = {
                     "number": attempt_number,
+                    "provider": provider.name,
+                    "configured_model": provider.model,
+                    "fallback": provider is self.fallback_provider,
+                    "provider_parameters": parameters,
+                    "context_budget_used": budget,
                     "status": "running",
                     "error_code": None,
                     "usage": None,
@@ -148,10 +187,13 @@ class ModelEvaluator:
                 self.store.save(metadata, snapshot)
                 retry = False
                 try:
-                    reply = self.provider.generate(
-                        INSTRUCTIONS,
+                    remaining = self.total_timeout - (time.monotonic() - started)
+                    if remaining <= 0:
+                        raise ModelError("evaluation_deadline")
+                    reply = provider.generate(
+                        instructions,
                         request,
-                        output_schema(),
+                        schema,
                         min(self.request_timeout, remaining),
                     )
                     attempt["usage"] = token_usage(reply.usage)
@@ -159,7 +201,7 @@ class ModelEvaluator:
                     attempt["resolved_model"] = reply.model
                     if time.monotonic() - started > self.total_timeout:
                         raise ModelError("evaluation_deadline")
-                    answers = parse_answers(reply.text)
+                    answers = short.decode(reply.text) if short else parse_answers(reply.text)
                     result = {
                         "kind": "model_result",
                         "schema_version": "1.0",
@@ -169,11 +211,11 @@ class ModelEvaluator:
                         "checklist_id": version.checklist_id,
                         "checklist_version_id": version.checklist_version_id,
                         "generation": {
-                            "mode": "live" if self.provider.live else "demo",
-                            "origin": self.provider.name,
+                            "mode": metadata["generation_mode"],
+                            "origin": provider.name,
                             "model_id": reply.model,
                             "is_ground_truth": False,
-                            "use_for_model_quality": self.provider.live,
+                            "use_for_model_quality": provider.live,
                             "note": "Transcript evaluation; no acoustic analysis. "
                             "Model predictions are not human ground truth.",
                         },
@@ -184,11 +226,29 @@ class ModelEvaluator:
                     metadata["status"] = card["status"]
                 except ModelError as exc:
                     attempt.update(status="failed", error_code=exc.code)
+                    if exc.correction_hint:
+                        attempt["validation_hint"] = exc.correction_hint
                     if exc.usage is not None:
                         attempt["usage"] = token_usage(exc.usage)
                     if exc.code.startswith("answer_") and format_retries == 0:
-                        correction = exc.code
+                        correction = {
+                            "error_code": exc.code,
+                            "instruction": "Return every criterion again using its saved rules "
+                            "and evidence from the supplied conversation.",
+                        }
+                        if exc.correction_hint:
+                            correction["validation_hint"] = exc.correction_hint
                         format_retries += 1
+                        retry = True
+                    elif (
+                        exc.code in FAILOVER_ERRORS
+                        and self.fallback_provider is not None
+                        and provider is self.provider
+                    ):
+                        provider = self.fallback_provider
+                        context_limit = self.fallback_context_token_limit
+                        correction = None
+                        network_retries += 1
                         retry = True
                     elif exc.retryable and network_retries == 0:
                         network_retries += 1
@@ -202,7 +262,7 @@ class ModelEvaluator:
                     attempt["elapsed_ms"] = round((time.monotonic() - attempt_started) * 1000, 3)
                     self.store.save(metadata, snapshot)
                 if retry:
-                    if attempt["error_code"] in {
+                    if provider is self.provider and attempt["error_code"] in {
                         "provider_network",
                         "provider_transient",
                         "provider_timeout",
@@ -236,7 +296,8 @@ class ModelEvaluator:
                 k: sum(a["usage"][k] for a in attempts) for k in ("input_tokens", "output_tokens")
             }
             metadata["token_usage"] = total
-            if all(rate is not None for rate in self.rates):
+            # Only the primary route has configured prices. Never price an alternate at its rate.
+            if not any(a["fallback"] for a in attempts) and all(r is not None for r in self.rates):
                 metadata["estimated_cost_usd"] = (
                     total["input_tokens"] * self.rates[0] + total["output_tokens"] * self.rates[1]
                 ) / 1_000_000

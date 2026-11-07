@@ -1,6 +1,7 @@
 """Single-process, durable evaluation jobs over ZIP-compatible group/conversation IDs."""
 
 import json
+import os
 import sqlite3
 from collections import Counter
 from collections.abc import Callable
@@ -14,6 +15,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 
 from backend.app.api.checklists import get_repository
+from backend.app.evaluation.provider import ModelError
 from backend.app.schemas.checklists import ChecklistVersion
 from backend.app.services.evaluation_cards import build_card, export_card, reviewed_card
 from backend.app.services.scoring import ChecklistError
@@ -70,6 +72,9 @@ class JobRunner:
         return self.evaluator is not None and self.pool is not None
 
     def start(self) -> None:
+        workers = int(os.getenv("CQA_EVALUATION_WORKERS", "4"))
+        if not 1 <= workers <= 8:
+            raise ValueError("CQA_EVALUATION_WORKERS must be between 1 and 8")
         with closing(connect()) as db, db:
             db.executescript(DDL)
             db.execute(
@@ -77,7 +82,7 @@ class JobRunner:
                    finished_at=? WHERE status IN ('queued','running')""",
                 (_now(),),
             )
-        self.pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="cqa-evaluation")
+        self.pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="cqa-evaluation")
 
     def stop(self) -> None:
         if self.pool:
@@ -158,6 +163,8 @@ class JobRunner:
             # Raw provider failures can contain conversation text or signed URLs.
             status = "failed"
             error = "evaluation_timeout" if isinstance(exc, TimeoutError) else "evaluation_failed"
+            if isinstance(exc, ModelError) and exc.code == "provider_rate_limit":
+                error = "provider_rate_limit"
             evaluation_id = None
         with closing(connect()) as db, db:
             db.execute(

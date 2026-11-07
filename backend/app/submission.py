@@ -83,11 +83,16 @@ def run_jobs(
     model: str,
     run_key: str,
     minutes: float,
+    *,
+    compact: bool = False,
 ) -> list[str]:
     if not get(client, "/api/capabilities").get("model_available"):
         raise ValueError("Оценщик не подключён. Экспорт доступен для ранее завершённых заданий.")
     deadline = time.monotonic() + minutes * 60
     roots = []
+    settings = {"model": model}
+    if compact:
+        settings["response_layout"] = "turns-v1"
     for channel, version in VERSIONS.items():
         ids = sorted(row["conversation_id"] for row in conversations if row["channel"] == channel)
         if not ids:
@@ -96,7 +101,7 @@ def run_jobs(
             "group_id": group,
             "conversation_ids": ids,
             "checklist_version_id": version,
-            "model_config": {"model": model},
+            "model_config": settings,
         }
         encoded = json.dumps([run_key, body], sort_keys=True, ensure_ascii=False)
         key = "submission-" + hashlib.sha256(encoded.encode("utf-8")).hexdigest()
@@ -160,6 +165,8 @@ def main() -> int:
                 help="Root job ID. Repeat for other channels.",
             )
         if name == "run":
+            command.add_argument("--compact", action="store_true",
+                                 help="Use checklist choices and 1-based transcript evidence")
             command.add_argument(
                 "--model", required=True, help="Actual configured model identifier"
             )
@@ -187,7 +194,8 @@ def main() -> int:
             if args.command == "run":
                 with httpx.Client(base_url="http://127.0.0.1:8765", timeout=30) as client:
                     roots = run_jobs(
-                        client, conversations, group, args.model, args.run_key, args.wait_minutes
+                        client, conversations, group, args.model, args.run_key, args.wait_minutes,
+                        compact=args.compact,
                     )
             else:
                 roots = args.jobs

@@ -144,7 +144,10 @@ def _model_run(db: sqlite3.Connection, card: dict) -> dict | None:
         "audio_analysed", "elapsed_ms", "token_usage", "estimated_cost_usd", "cost_basis",
     )
     result = {key: metadata.get(key) for key in fields}
-    attempt_fields = ("number", "status", "error_code", "usage", "resolved_model", "elapsed_ms")
+    attempt_fields = (
+        "number", "status", "error_code", "usage", "provider", "configured_model",
+        "resolved_model", "elapsed_ms",
+    )
     result["attempts"] = [
         {key: attempt.get(key) for key in attempt_fields}
         for attempt in metadata.get("attempts", []) if isinstance(attempt, dict)

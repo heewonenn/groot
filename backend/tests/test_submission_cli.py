@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from backend.app import submission
+from backend.app.evaluation.provider import ModelError
 from backend.app.main import create_app
 from backend.app.team_data import SourceConversation, store_group
 
@@ -17,7 +18,7 @@ EXAMPLES = Path(__file__).resolve().parents[2] / "docs/contracts/examples"
 def simulated_adapter(evaluation_id, conversation, rules, settings):
     cid = conversation["conversation_id"]
     if cid.endswith("9"):
-        raise TimeoutError("synthetic timeout")
+        raise ModelError("provider_rate_limit")
     stub = json.loads((EXAMPLES / "server-response.synthetic.json").read_bytes())["model_result"]
     old_id = stub["conversation_id"]
     stub = json.loads(json.dumps(stub).replace(old_id, cid))
@@ -66,6 +67,8 @@ def test_prepare_export_and_check_control(tmp_path, monkeypatch):
     assert sum(r["status"] == "ok" for r in payload["results"]) == 9
     assert payload["results"][0]["score"]["final_score"] == 85.38
     assert payload["results"][-1]["status"] == "error"
+    assert "HTTP 429" in payload["results"][-1]["error"]
+    assert payload["results"][-1]["score"] is None
     monkeypatch.setattr(sys, "argv", ["cli", "check", "prod", "--group-id", "TEST-CONTROL"])
     assert submission.main() == 0
     monkeypatch.setattr(sys, "argv", [*args, "absent"])
