@@ -12,7 +12,7 @@ function seekWhenAvailable(audio: HTMLAudioElement | null, target: number | null
   // Metadata can arrive before the browser has a seekable media range.
   for (let i = 0; i < audio.seekable.length; i++) {
     if (target >= audio.seekable.start(i) && target <= audio.seekable.end(i)) {
-      audio.currentTime = target
+      if (audio.currentTime !== target) audio.currentTime = target
       return true
     }
   }
@@ -24,14 +24,12 @@ export default function CallRecording({ path, messages, evidenceId, onSelect }: 
 }) {
   const player = useRef<HTMLAudioElement>(null)
   const pending = useRef<number | null>(null)
-  const requested = useRef<string | null>(null)
   const [audioError, setAudioError] = useState(false)
   const alignment = useData<Alignment>(path + '/audio-anchors', 75000)
   const anchors = alignment.data?.anchors.filter(a => messages.some(m => m.message_id === a.message_id)) ?? []
   const evidenceStart = anchors.find(a => a.message_id === evidenceId)?.start_seconds
   useEffect(() => {
     if (evidenceStart === undefined) { pending.current = null; return }
-    if (requested.current === evidenceId) { requested.current = null; return }
     pending.current = evidenceStart
     if (seekWhenAvailable(player.current, pending.current)) {
       pending.current = null
@@ -41,14 +39,13 @@ export default function CallRecording({ path, messages, evidenceId, onSelect }: 
   function seek(anchor: Anchor) {
     const audio = player.current
     if (!audio) return
-    requested.current = anchor.message_id
     onSelect(anchor.message_id)
-    pending.current = anchor.start_seconds
     if (audioError) {
       setAudioError(false)
       audio.load()
     }
-    if (seekWhenAvailable(audio, pending.current)) pending.current = null
+    pending.current = anchor.start_seconds
+    applyPendingSeek()
     void audio.play().catch(() => { if (audio.error) setAudioError(true) })
   }
 
