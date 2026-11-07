@@ -466,8 +466,10 @@ def test_disabled_restart_recovers_abandoned_model_audit_and_queue_without_calls
 
 
 def test_model_factory_keeps_health_available_when_storage_is_offline(tmp_path, monkeypatch):
-    # SQLite cannot open a directory as its database; no actual data is damaged.
-    monkeypatch.setenv("CQA_DB_PATH", str(tmp_path))
+    # A regular file cannot be the database's parent on Windows or Unix.
+    blocked_parent = tmp_path / "blocked-parent"
+    blocked_parent.write_text("temporary storage blocker", encoding="utf-8")
+    monkeypatch.setenv("CQA_DB_PATH", str(blocked_parent / "cqa.sqlite3"))
     monkeypatch.delenv("CQA_MODEL_ENABLED", raising=False)
     with TestClient(create_configured_app()) as client:
         assert client.get("/api/health").json() == {"status": "ok"}
