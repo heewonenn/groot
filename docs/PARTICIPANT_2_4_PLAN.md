@@ -45,10 +45,12 @@
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.check_dev_delivery
-.\.venv\Scripts\python.exe -m scripts.resume_dev --wait-for-reset --publish
+.\.venv\Scripts\python.exe -m scripts.resume_dev --publish
 ```
 
-Первая команда проверяет выгрузку по сохранённым карточкам без вызова модели. Вторая продолжает оценку по исходным правилам. Суточный счётчик DEV сохраняется между перезапусками. Флаг `--publish` отправляет проверенный файл в `codex/participant-2`. [Код повтора](../scripts/resume_dev.py) · [Проверка выгрузки](../scripts/check_dev_delivery.py)
+Первая команда проверяет выгрузку по сохранённым карточкам без вызова модели. Вторая продолжает оценку по исходным правилам. На компьютере команды `/api/model-status` показывает основную Gemini 3.8 Flash, дополнительную Google Gemma 4 31B в поле `quota_fallback` и Dots в поле `fallback`. При исчерпании бюджета DEV на Dots скрипт повторяет по одному диалогу, разрешая для этой попытки только Google. Лимит Dots и суточный счётчик сохраняются между перезапусками. Флаг `--publish` отправляет проверенный файл в `codex/participant-2`. [Код повтора](../scripts/resume_dev.py) · [Проверка выгрузки](../scripts/check_dev_delivery.py)
+
+8 ноября 2026 года в кабинете бесплатного проекта для Gemma 4 31B были указаны 14 400 запросов в сутки, 30 в минуту и 16 000 токенов в минуту. На учебном диалоге после HTTP 429 от Gemini рабочий ключ получил от Gemma восемь оценок с доказательствами. В каждом проекте действующие лимиты видны в [Google AI Studio](https://aistudio.google.com/rate-limit).
 
 ## Первая реальная оценка
 

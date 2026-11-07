@@ -15,8 +15,12 @@ from backend.tests.test_model_evaluation import Scripted, example
 def sample(tmp_path, monkeypatch):
     monkeypatch.setenv("CQA_DB_PATH", str(tmp_path / "batch.sqlite3"))
     rules = get_repository().get_version("freedom-chat@1")
-    fixture = example("server-response.synthetic.json")["model_result"]
     turns = example("conversation.synthetic.json")
+    return turns, rules, compact_answers(turns)
+
+
+def compact_answers(turns):
+    fixture = example("server-response.synthetic.json")["model_result"]
     short = {}
     for a in fixture["criteria"]:
         value = a["value"]
@@ -38,7 +42,7 @@ def sample(tmp_path, monkeypatch):
             "evidence": [proof],
             "timing": False,
         }
-    return turns, rules, short
+    return short
 
 
 def test_compact_layout_preserves_numerical_values_and_source_turns(sample):

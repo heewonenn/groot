@@ -12,6 +12,7 @@ from backend.app.evaluation.provider import ModelError, Reply
 GEMINI_MODEL = "gemini-3.8-flash"
 FLASH_25 = "gemini-2.5-flash"
 GEMMA_27B = "gemma-3-27b-it"
+GEMMA_4_31B = "gemma-4-31b-it"
 
 
 def bad_request_code(response: httpx.Response) -> str:
@@ -78,7 +79,7 @@ class GeminiGenerateContent:
 
     def __post_init__(self) -> None:
         # The model is a path component, never a caller-supplied URL or query.
-        if self.model != GEMMA_27B and not re.fullmatch(
+        if self.model not in (GEMMA_27B, GEMMA_4_31B) and not re.fullmatch(
             r"gemini-[A-Za-z0-9][A-Za-z0-9._-]{0,119}", self.model
         ):
             raise ValueError("invalid_gemini_model")
@@ -86,8 +87,12 @@ class GeminiGenerateContent:
             raise ValueError("invalid_gemini_thinking_level")
 
     @property
+    def prefer_turn_numbers(self) -> bool:
+        return self.model == GEMMA_4_31B
+
+    @property
     def parameters(self) -> dict:
-        if self.model == GEMMA_27B:
+        if self.model in (GEMMA_27B, GEMMA_4_31B):
             return {
                 "api": "generateContent", "format": "prompt_json",
                 "max_output_tokens": min(8192, self.max_output_tokens),
@@ -104,7 +109,7 @@ class GeminiGenerateContent:
 
     def _request_body(self, instructions: str, payload: str, schema: dict) -> dict:
         config = {"maxOutputTokens": self.parameters["max_output_tokens"]}
-        if self.model == GEMMA_27B:
+        if self.model in (GEMMA_27B, GEMMA_4_31B):
             # Gemma 3 accepts a user turn. The same evaluator still checks all evidence and types.
             prompt = (
                 instructions + "\nReturn only JSON matching this schema, without Markdown:\n"
@@ -211,4 +216,8 @@ class GeminiGenerateContent:
         text = "".join(texts)
         if not text.strip() or not isinstance(model, str) or not model.strip():
             raise ModelError("provider_envelope_invalid", usage=usage)
+        if self.model == GEMMA_4_31B:
+            fenced = re.fullmatch(r"\s*```(?:json)?\s*\n(.+?)\n\s*```\s*", text, flags=re.S | re.I)
+            if fenced:
+                text = fenced.group(1)
         return Reply(text, model, usage)

@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.evaluation.contract import PROMPT_VERSION, evidence_quotes
 from backend.app.evaluation.engine import ModelEvaluator
-from backend.app.evaluation.gemini import GEMINI_MODEL, GeminiGenerateContent
+from backend.app.evaluation.gemini import GEMINI_MODEL, GEMMA_4_31B, GeminiGenerateContent
 from backend.app.evaluation.knowledge import Knowledge
 from backend.app.evaluation.openrouter import OpenRouterChat
 from backend.app.evaluation.openrouter_local import load_profile, profile_path
@@ -49,6 +49,21 @@ def _provider(name: str, model: str, key: str, max_output: int) -> Provider:
     if name == "openrouter":
         return OpenRouterChat(model, key, max_output_tokens=max_output)
     return OpenAIResponses(model, key, max_output_tokens=max_output)
+
+
+def _with_google_quota_route(evaluator: ModelEvaluator) -> ModelEvaluator:
+    primary = evaluator.provider
+    reserve = evaluator.fallback_provider
+    if (primary.name == "gemini" and primary.model == GEMINI_MODEL
+            and reserve is not None and reserve.name == "openrouter"
+            and reserve.model == "dots-studio/dots-3-note-preview:free"
+            and os.getenv("CQA_GEMMA4_FALLBACK", "1") == "1"):
+        evaluator = copy(evaluator)
+        evaluator.quota_provider = GeminiGenerateContent(
+            GEMMA_4_31B, primary.api_key, max_output_tokens=min(primary.max_output_tokens, 4096)
+        )
+        evaluator.quota_context_token_limit = 262144
+    return evaluator
 
 
 def configured_evaluator() -> tuple[ModelEvaluator | None, str | None]:
@@ -103,7 +118,7 @@ def configured_evaluator() -> tuple[ModelEvaluator | None, str | None]:
             context_token_limit=context_limit,
             **rates,
         )
-        return evaluator, None
+        return _with_google_quota_route(evaluator), None
     except ValueError, OSError, sqlite3.Error:
         return None, "model_configuration_invalid"
 
@@ -129,7 +144,7 @@ def create_model_app(
         selected = copy(evaluator)
         selected.fallback_provider = route
         selected.fallback_context_token_limit = context
-        return selected
+        return _with_google_quota_route(selected)
 
     def evaluate(eid: str, conversation: dict, rules: dict, settings: dict) -> dict:
         selected = for_next_job()
@@ -148,6 +163,10 @@ def create_model_app(
             "reason": reason,
             "provider": evaluator.provider.name if evaluator else None,
             "model": evaluator.provider.model if evaluator else None,
+            "quota_fallback": (
+                {"provider": selected.quota_provider.name, "model": selected.quota_provider.model}
+                if selected and selected.quota_provider else None
+            ),
             "fallback": (
                 {"provider": selected.fallback_provider.name,
                  "model": selected.fallback_provider.model}

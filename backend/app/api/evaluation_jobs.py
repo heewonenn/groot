@@ -59,8 +59,8 @@ def create(payload: JobRequest, request: Request, idempotency_key: Key) -> dict:
 
 
 @router.post("/evaluation-jobs/{job_id}/retry", status_code=202, response_model=JobReceipt)
-def retry(job_id: str, request: Request, idempotency_key: Key) -> dict:
-    return request.app.state.jobs.retry(job_id, idempotency_key)
+def retry(job_id: str, request: Request, idempotency_key: Key, google_only: bool = False) -> dict:
+    return request.app.state.jobs.retry(job_id, idempotency_key, google_only=google_only)
 
 
 @router.get("/evaluation-jobs/{job_id}")
