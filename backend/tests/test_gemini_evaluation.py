@@ -179,10 +179,10 @@ def test_usage_is_not_fabricated(usage, expected):
 @pytest.mark.parametrize(
     "status,code,retry",
     [
-        (400, "provider_rejected", False),
+        (400, "provider_bad_request", False),
         (401, "provider_auth", False),
         (403, "provider_auth", False),
-        (404, "provider_rejected", False),
+        (404, "provider_model_unavailable", False),
         (429, "provider_rate_limit", False),
         (408, "provider_transient", True),
         (503, "provider_transient", True),
@@ -206,6 +206,21 @@ def test_http_failures_are_sanitized(status, code, retry):
     assert str(caught.value) == code
     assert caught.value.retryable is retry
     assert len(requests) == 1
+
+
+@pytest.mark.parametrize(("status", "detail", "code"), [
+    ("FAILED_PRECONDITION", "User location is not supported", "provider_region_unavailable"),
+    ("FAILED_PRECONDITION", "project condition", "provider_precondition"),
+    ("INVALID_ARGUMENT", "Invalid schema", "provider_generation_config"),
+    ("INVALID_ARGUMENT", "Unexpected input", "provider_bad_request"),
+])
+def test_gemini_bad_request_does_not_echo_project_or_prompt(status, detail, code):
+    response = {"error": {"status": status, "message": detail + " secret prompt and key"}}
+    transport = httpx.MockTransport(lambda _: httpx.Response(400, json=response))
+    provider = GeminiGenerateContent(FLASH_25, "fixture", transport=transport)
+    with pytest.raises(ModelError) as caught:
+        provider.generate("instruction", "{}", {}, 1)
+    assert str(caught.value) == code
 
 
 @pytest.mark.parametrize(
@@ -290,6 +305,21 @@ def test_transport_limits(failure, code):
 def test_model_cannot_override_endpoint(model):
     with pytest.raises(ValueError, match="invalid_gemini_model"):
         GeminiGenerateContent(model, "key")
+
+
+def test_local_google_profile_and_verified_launcher_precedence(configured, tmp_path):
+    profile = tmp_path / "google-model.local.json"
+    configured.setenv("CQA_MODEL", FLASH_25)
+    profile.write_text(json.dumps({"model": GEMINI_MODEL, "context_tokens": 1048576}))
+    evaluator, reason = model_app.configured_evaluator()
+    assert reason is None
+    assert (evaluator.provider.model, evaluator.context_token_limit) == (GEMINI_MODEL, 1048576)
+    profile.write_text('{"model":"https://other.invalid","context_tokens":1024}')
+    assert model_app.configured_evaluator()[1] == "model_configuration_invalid"
+    configured.setenv("CQA_GOOGLE_CATALOG_RESOLVED", "1")
+    evaluator, reason = model_app.configured_evaluator()
+    assert reason is None
+    assert (evaluator.provider.model, evaluator.context_token_limit) == (FLASH_25, 128000)
 
 
 def test_configuration_selects_provider_and_key_without_requests(configured):

@@ -14,6 +14,39 @@ FLASH_25 = "gemini-2.5-flash"
 GEMMA_27B = "gemma-3-27b-it"
 
 
+def bad_request_code(response: httpx.Response) -> str:
+    """Keep actionable categories from Google without saving its echoed request text."""
+    data = bytearray()
+    for chunk in response.iter_bytes(chunk_size=4096):
+        if len(data) + len(chunk) > 32_768:
+            return "provider_bad_request"
+        data.extend(chunk)
+    try:
+        body = json.loads(data)
+    except (ValueError, UnicodeError):
+        return "provider_bad_request"
+    error = body.get("error") if isinstance(body, dict) else None
+    if not isinstance(error, dict):
+        return "provider_bad_request"
+    message = error.get("message")
+    message = message.lower() if isinstance(message, str) else ""
+    if any(s in message for s in (
+        "user location is not supported", "free tier is not available in your country",
+    )):
+        return "provider_region_unavailable"
+    if "api key not valid" in message or "api key expired" in message:
+        return "provider_auth"
+    if "model" in message and any(s in message for s in (
+        "no longer available", "deprecated", "not supported for generatecontent", "shut down",
+    )):
+        return "provider_model_unavailable"
+    if error.get("status") == "FAILED_PRECONDITION":
+        return "provider_precondition"
+    if any(field in message for field in ("schema", "generation_config", "generationconfig")):
+        return "provider_generation_config"
+    return "provider_bad_request"
+
+
 def gemini_usage(value: object) -> dict | None:
     """Include thinking tokens in output usage; unknown usage must not look free."""
     if not isinstance(value, dict):
@@ -115,6 +148,10 @@ class GeminiGenerateContent:
                         raise ModelError("provider_transient", retryable=True)
                     if response.status_code in (401, 403):
                         raise ModelError("provider_auth")
+                    if response.status_code == 400:
+                        raise ModelError(bad_request_code(response))
+                    if response.status_code == 404:
+                        raise ModelError("provider_model_unavailable")
                     if response.status_code != 200:
                         raise ModelError("provider_rejected")
                     chunks, size = [], 0
@@ -126,6 +163,8 @@ class GeminiGenerateContent:
                             raise ModelError("provider_response_too_large")
                         chunks.append(chunk)
             data = json.loads(b"".join(chunks))
+        except httpx.TimeoutException:
+            raise ModelError("provider_timeout", retryable=True) from None
         except httpx.TransportError:
             raise ModelError("provider_network", retryable=True) from None
         except ValueError, UnicodeError:

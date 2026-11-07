@@ -3,8 +3,10 @@
 import math
 import os
 import sqlite3
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.evaluation.contract import PROMPT_VERSION, evidence_quotes
 from backend.app.evaluation.engine import ModelEvaluator
@@ -14,11 +16,17 @@ from backend.app.evaluation.openrouter import OpenRouterChat
 from backend.app.evaluation.provider import OpenAIResponses, Provider
 from backend.app.evaluation.store import RunStore
 from backend.app.main import create_app
-from backend.app.team_data import DataRoute
+from backend.app.team_data import ROOT, DataRoute
 
 KEY_ENV = {
     "openai": "OPENAI_API_KEY", "gemini": "GEMINI_API_KEY", "openrouter": "OPENROUTER_API_KEY",
 }
+
+
+class LocalGoogleModel(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+    model: str = Field(pattern=r"^gemini-[A-Za-z0-9][A-Za-z0-9._-]{0,119}$")
+    context_tokens: int = Field(ge=1024, le=2_000_000)
 
 
 def _number(name: str, default: str, low: float, high: float) -> float:
@@ -32,7 +40,9 @@ def _provider(name: str, model: str, key: str, max_output: int) -> Provider:
     if name == "gemini":
         return GeminiGenerateContent(
             model, key, max_output_tokens=max_output,
-            thinking_level=os.getenv("CQA_GEMINI_THINKING_LEVEL", "medium"),
+            thinking_level=os.getenv(
+                "CQA_GEMINI_THINKING_LEVEL", "low" if model == GEMINI_MODEL else "medium",
+            ),
         )
     if name == "openrouter":
         return OpenRouterChat(model, key, max_output_tokens=max_output)
@@ -51,6 +61,13 @@ def configured_evaluator() -> tuple[ModelEvaluator | None, str | None]:
     if not model or not key or not os.getenv("CQA_CONTEXT_TOKENS"):
         return None, "model_configuration_missing"
     try:
+        context_limit = int(_number("CQA_CONTEXT_TOKENS", "0", 1024, 2_000_000))
+        if provider_name == "gemini" and os.getenv("CQA_GOOGLE_CATALOG_RESOLVED") != "1":
+            database = Path(os.getenv("CQA_DB_PATH") or ROOT / "data" / "cqa.sqlite3")
+            profile = database.with_name("google-model.local.json")
+            if profile.is_file():
+                selection = LocalGoogleModel.model_validate_json(profile.read_bytes())
+                model, context_limit = selection.model, selection.context_tokens
         knowledge_path = os.getenv("CQA_KNOWLEDGE_PATH")
         knowledge = Knowledge.read(knowledge_path) if knowledge_path else None
         rates = {}
@@ -71,16 +88,17 @@ def configured_evaluator() -> tuple[ModelEvaluator | None, str | None]:
                 return None, "model_configuration_invalid"
             fallback_context = int(_number("CQA_FALLBACK_CONTEXT_TOKENS", "0", 1024, 2_000_000))
             fallback = _provider(fallback_name, fallback_model, fallback_key, max_output)
+        use_flash_38 = provider_name == "gemini" and model == GEMINI_MODEL
         evaluator = ModelEvaluator(
             provider,
             RunStore(),
             fallback_provider=fallback,
             fallback_context_token_limit=fallback_context,
             knowledge=knowledge,
-            request_timeout=_number("CQA_REQUEST_TIMEOUT", "60", 1, 120),
-            total_timeout=_number("CQA_TOTAL_TIMEOUT", "150", 1, 360),
+            request_timeout=_number("CQA_REQUEST_TIMEOUT", "110" if use_flash_38 else "60", 1, 120),
+            total_timeout=_number("CQA_TOTAL_TIMEOUT", "240" if use_flash_38 else "150", 1, 360),
             max_input_chars=int(_number("CQA_MAX_INPUT_CHARS", "180000", 1000, 500000)),
-            context_token_limit=int(_number("CQA_CONTEXT_TOKENS", "0", 1024, 2_000_000)),
+            context_token_limit=context_limit,
             **rates,
         )
         return evaluator, None

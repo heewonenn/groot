@@ -1,6 +1,6 @@
 # Start the requested Google-only CQA profile from any directory.
 #Requires -Version 7.0
-param([switch]$CheckOnly, [switch]$KeyDialog)
+param([switch]$CheckOnly, [switch]$KeyDialog, [switch]$DevReload)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $python = Join-Path $repo '.venv\Scripts\python.exe'
@@ -31,7 +31,16 @@ if (!(Test-Path -LiteralPath $python)) { throw 'Run scripts/setup.ps1 first.' }
 $Host.UI.RawUI.WindowTitle = 'CQA - Gemini + Gemma'
 $env:CQA_MODEL_ENABLED = '1'
 $env:CQA_MODEL_PROVIDER = 'gemini'
-$env:CQA_MODEL = 'gemini-2.5-flash'
+$env:CQA_MODEL = 'gemini-3.8-flash'
+$dataDir = if ($env:CQA_DB_PATH) { Split-Path -Parent ([IO.Path]::GetFullPath($env:CQA_DB_PATH)) } else { Join-Path $repo 'data' }
+$profilePath = Join-Path $dataDir 'google-model.local.json'
+if (Test-Path -LiteralPath $profilePath) {
+    $selection = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
+    if ($selection.model -cnotmatch '^gemini-[A-Za-z0-9][A-Za-z0-9._-]{0,119}$') {
+        throw [ApplicationException]::new('Некорректное имя модели в google-model.local.json.')
+    }
+    $env:CQA_MODEL = $selection.model
+}
 $env:CQA_FALLBACK_PROVIDER = 'gemini'
 $env:CQA_FALLBACK_MODEL = 'gemma-3-27b-it'
 function Read-GoogleKeyDialog([string]$notice) {
@@ -157,14 +166,16 @@ while ($true) {
         $key = $null
     }
 }
-$profileMessage = "Доступна $env:CQA_MODEL."
+$profileMessage = "Каталог Google подтвердил модель $env:CQA_MODEL. Генерацию проверяет первое задание."
 if ($missing.Count) { $profileMessage += ' ' + ($missing -join ' ') }
 Write-LauncherStatus 'catalog_checked' $profileMessage
 if ($CheckOnly) { return }
+$env:CQA_GOOGLE_CATALOG_RESOLVED = '1'
 $env:GEMINI_API_KEY = $key
 Push-Location $repo
 try {
-    & $python -m uvicorn backend.app.model_app:create_configured_app --factory --host 127.0.0.1 --port 8765
+    $reloadArgs = if ($DevReload) { @('--reload', '--reload-dir', (Join-Path $repo 'backend/app')) } else { @() }
+    & $python -m uvicorn backend.app.model_app:create_configured_app --factory --host 127.0.0.1 --port 8765 @reloadArgs
     if ($LASTEXITCODE -ne 0) { throw [ApplicationException]::new("Сервер завершился с кодом $LASTEXITCODE. Проверьте, свободен ли порт 8765.") }
     Write-LauncherStatus 'stopped' 'Сервер остановлен.'
     exit $LASTEXITCODE
