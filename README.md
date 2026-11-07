@@ -174,7 +174,8 @@ Do not transfer credential files to teammates. See the readiness report for test
 - `docs`: audit evidence and decisions; `scripts`: setup and verification.
 - Use `main` and focused `codex/<topic>` branches. Create the first commit before worktrees.
 - Team changes are reviewed locally before synchronization. Publishing or pushing
-  requires the user's authorization; this participant 3 delivery has not been pushed.
+  requires the user's authorization. Participant 3 changes are prepared for a
+  pull request from `codex/participant-3` into `main` at the owner's request.
 - Use `.env.example` as a template. Set `APP_NAME` in the process environment if needed;
   the backend does not automatically load `.env`. `CQA_SOURCE_URL` configures the
   organizer import; a private `data/team-api/source_url.txt` is the fallback.
