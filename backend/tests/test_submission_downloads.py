@@ -196,11 +196,13 @@ def test_imported_group_without_job_tables_is_empty(client):
     assert client.get("/api/evaluation-jobs", params={"group_id": GROUP}).json() == []
 
 
-def test_storage_failure_returns_safe_503(client, monkeypatch):
-    monkeypatch.setenv("CQA_DB_PATH", "/dev/null/http-export.sqlite3")
+def test_storage_failure_returns_safe_503(client, tmp_path, monkeypatch):
+    blocked_parent = tmp_path / "blocked-parent"
+    blocked_parent.write_text("temporary storage blocker", encoding="utf-8")
+    monkeypatch.setenv("CQA_DB_PATH", str(blocked_parent / "http-export.sqlite3"))
     response = client.get("/api/evaluation-jobs", params={"group_id": GROUP})
     assert response.status_code == 503
-    assert "/dev/null" not in response.text
+    assert str(tmp_path) not in response.json()["detail"]
 
 
 @pytest.mark.parametrize(("field", "value"), [
