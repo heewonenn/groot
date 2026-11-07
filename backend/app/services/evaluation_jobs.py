@@ -15,6 +15,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 
 from backend.app.api.checklists import get_repository
+from backend.app.evaluation.provider import ModelError
 from backend.app.schemas.checklists import ChecklistVersion
 from backend.app.services.evaluation_cards import build_card, export_card, reviewed_card
 from backend.app.services.scoring import ChecklistError
@@ -162,6 +163,8 @@ class JobRunner:
             # Raw provider failures can contain conversation text or signed URLs.
             status = "failed"
             error = "evaluation_timeout" if isinstance(exc, TimeoutError) else "evaluation_failed"
+            if isinstance(exc, ModelError) and exc.code == "provider_rate_limit":
+                error = "provider_rate_limit"
             evaluation_id = None
         with closing(connect()) as db, db:
             db.execute(
