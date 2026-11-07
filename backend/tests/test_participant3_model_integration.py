@@ -197,7 +197,16 @@ def test_pipeline_card_audit_and_review_preserve_model_run_after_restart(source)
         ]
         metadata = client.get("/api/evaluation-runs/" + eid).json()
         exported_metadata = original["runtime"]["model_run"]
-        assert exported_metadata == {key: metadata[key] for key in exported_metadata}
+        assert {k: v for k, v in exported_metadata.items() if k != "attempts"} == {
+            k: metadata[k] for k in exported_metadata if k != "attempts"
+        }
+        public_attempt_fields = {
+            "number", "status", "error_code", "usage", "provider", "configured_model",
+            "resolved_model", "elapsed_ms",
+        }
+        assert exported_metadata["attempts"] == [
+            {k: a[k] for k in public_attempt_fields} for a in metadata["attempts"]
+        ]
         assert "input_fingerprint" not in exported_metadata
         assert metadata["estimated_cost_usd"] is None
         assert metadata["token_usage"] == {"input_tokens": 100, "output_tokens": 50}

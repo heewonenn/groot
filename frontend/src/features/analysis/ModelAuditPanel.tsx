@@ -102,7 +102,7 @@ export default function ModelAuditPanel({ card, onJump }: { card: Card; onJump: 
       {run.attempts.length === 0 ? <p className="an-hint">Вызов сервиса ещё не был выполнен.</p> : <ol>
         {run.attempts.map(item => <li key={item.number}>
           <strong>Попытка {item.number} · {modelRunStatus(item.status)}</strong>
-          <p>{elapsedText(item.elapsed_ms)} · {item.resolved_model ?? 'Модель не сообщена'}</p>
+          <p>{elapsedText(item.elapsed_ms)} · {item.provider && item.provider + ' / '}{item.resolved_model ?? item.configured_model ?? 'Модель не сообщена'}</p>
           <p>Токены: вход {item.usage?.input_tokens.toLocaleString('ru-RU') ?? 'неизвестен'}, выход {item.usage?.output_tokens.toLocaleString('ru-RU') ?? 'неизвестен'}.</p>
           {item.error_code && <p className="an-model-attempt-error">{modelErrorText(item.error_code)}</p>}
         </li>)}

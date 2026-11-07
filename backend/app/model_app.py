@@ -10,10 +10,15 @@ from backend.app.evaluation.contract import PROMPT_VERSION, evidence_quotes
 from backend.app.evaluation.engine import ModelEvaluator
 from backend.app.evaluation.gemini import GEMINI_MODEL, GeminiGenerateContent
 from backend.app.evaluation.knowledge import Knowledge
-from backend.app.evaluation.provider import OpenAIResponses
+from backend.app.evaluation.openrouter import OpenRouterChat
+from backend.app.evaluation.provider import OpenAIResponses, Provider
 from backend.app.evaluation.store import RunStore
 from backend.app.main import create_app
 from backend.app.team_data import DataRoute
+
+KEY_ENV = {
+    "openai": "OPENAI_API_KEY", "gemini": "GEMINI_API_KEY", "openrouter": "OPENROUTER_API_KEY",
+}
 
 
 def _number(name: str, default: str, low: float, high: float) -> float:
@@ -23,15 +28,26 @@ def _number(name: str, default: str, low: float, high: float) -> float:
     return value
 
 
+def _provider(name: str, model: str, key: str, max_output: int) -> Provider:
+    if name == "gemini":
+        return GeminiGenerateContent(
+            model, key, max_output_tokens=max_output,
+            thinking_level=os.getenv("CQA_GEMINI_THINKING_LEVEL", "medium"),
+        )
+    if name == "openrouter":
+        return OpenRouterChat(model, key, max_output_tokens=max_output)
+    return OpenAIResponses(model, key, max_output_tokens=max_output)
+
+
 def configured_evaluator() -> tuple[ModelEvaluator | None, str | None]:
     if os.getenv("CQA_MODEL_ENABLED", "").lower() not in {"1", "true"}:
         return None, "model_disabled"
     provider_name = os.getenv("CQA_MODEL_PROVIDER", "openai").strip()
-    if provider_name not in {"openai", "gemini"}:
+    fallback_name = os.getenv("CQA_FALLBACK_PROVIDER", "").strip()
+    if provider_name not in KEY_ENV or fallback_name not in {"", "gemini", "openrouter"}:
         return None, "provider_not_supported"
     model = os.getenv("CQA_MODEL", GEMINI_MODEL if provider_name == "gemini" else "").strip()
-    key_name = "GEMINI_API_KEY" if provider_name == "gemini" else "OPENAI_API_KEY"
-    key = os.getenv(key_name, "").strip()
+    key = os.getenv(KEY_ENV[provider_name], "").strip()
     if not model or not key or not os.getenv("CQA_CONTEXT_TOKENS"):
         return None, "model_configuration_missing"
     try:
@@ -44,19 +60,22 @@ def configured_evaluator() -> tuple[ModelEvaluator | None, str | None]:
                 _number(name, "0", 0, 1_000_000) if os.getenv(name) else None
             )
         max_output = int(_number("CQA_MAX_OUTPUT_TOKENS", "12000", 512, 32000))
-        provider = (
-            GeminiGenerateContent(
-                model,
-                key,
-                max_output_tokens=max_output,
-                thinking_level=os.getenv("CQA_GEMINI_THINKING_LEVEL", "medium"),
-            )
-            if provider_name == "gemini"
-            else OpenAIResponses(model, key, max_output_tokens=max_output)
-        )
+        provider = _provider(provider_name, model, key, max_output)
+        fallback = fallback_context = None
+        if fallback_name:
+            fallback_model = os.getenv("CQA_FALLBACK_MODEL", "").strip()
+            fallback_key = os.getenv(KEY_ENV[fallback_name], "").strip()
+            if not (fallback_model and fallback_key and os.getenv("CQA_FALLBACK_CONTEXT_TOKENS")):
+                return None, "model_configuration_missing"
+            if (fallback_name, fallback_model) == (provider_name, model):
+                return None, "model_configuration_invalid"
+            fallback_context = int(_number("CQA_FALLBACK_CONTEXT_TOKENS", "0", 1024, 2_000_000))
+            fallback = _provider(fallback_name, fallback_model, fallback_key, max_output)
         evaluator = ModelEvaluator(
             provider,
             RunStore(),
+            fallback_provider=fallback,
+            fallback_context_token_limit=fallback_context,
             knowledge=knowledge,
             request_timeout=_number("CQA_REQUEST_TIMEOUT", "60", 1, 120),
             total_timeout=_number("CQA_TOTAL_TIMEOUT", "150", 1, 360),
@@ -88,6 +107,11 @@ def create_model_app(evaluator: ModelEvaluator | None, reason: str | None = None
             "reason": reason,
             "provider": evaluator.provider.name if evaluator else None,
             "model": evaluator.provider.model if evaluator else None,
+            "fallback": (
+                {"provider": evaluator.fallback_provider.name,
+                 "model": evaluator.fallback_provider.model}
+                if evaluator and evaluator.fallback_provider else None
+            ),
             "prompt_version": PROMPT_VERSION,
             "audio_analysed": False,
             "knowledge_version": (

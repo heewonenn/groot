@@ -19,6 +19,8 @@ export interface TokenUsage {
 
 export interface ModelAttempt {
   number: number
+  provider?: string | null
+  configured_model?: string | null
   status: string
   error_code: string | null
   usage: TokenUsage | null

@@ -51,6 +51,10 @@ def configured(tmp_path, monkeypatch):
         "CQA_OUTPUT_USD_PER_MILLION",
         "OPENAI_API_KEY",
         "GOOGLE_API_KEY",
+        "CQA_FALLBACK_PROVIDER",
+        "CQA_FALLBACK_MODEL",
+        "CQA_FALLBACK_CONTEXT_TOKENS",
+        "OPENROUTER_API_KEY",
     ):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("CQA_DB_PATH", str(tmp_path / "synthetic.db"))
@@ -263,7 +267,9 @@ def test_invalid_configuration_stays_unavailable(configured, setting, value):
     assert model_app.configured_evaluator() == (None, "model_configuration_invalid")
 
 
-@pytest.mark.parametrize("mode", ["success", "correction", "partial", "quota", "transient"])
+@pytest.mark.parametrize(
+    "mode", ["success", "correction", "partial", "quota", "transient", "reserve"]
+)
 def test_configured_gemini_job_preserves_contract_and_audit(configured, mode):
     conversation = example("conversation.synthetic.json")
     raw = copy.deepcopy(conversation)
@@ -275,7 +281,7 @@ def test_configured_gemini_job_preserves_contract_and_audit(configured, mode):
     def handler(request):
         body = json.loads(request.content)
         requests.append(body)
-        if mode == "quota":
+        if mode in {"quota", "reserve"}:
             return httpx.Response(429, json={"error": "secret"})
         if mode == "transient" and len(requests) == 1:
             return httpx.Response(503)
@@ -300,6 +306,23 @@ def test_configured_gemini_job_preserves_contract_and_audit(configured, mode):
             *args, **kwargs, transport=httpx.MockTransport(handler)
         ),
     )
+    backup_model = "test/reserve:free"
+    if mode == "reserve":
+        configured.setenv("CQA_FALLBACK_PROVIDER", "openrouter")
+        configured.setenv("CQA_FALLBACK_MODEL", backup_model)
+        configured.setenv("OPENROUTER_API_KEY", "reserve-test-secret")
+        assert model_app.configured_evaluator()[1] == "model_configuration_missing"
+        configured.setenv("CQA_FALLBACK_CONTEXT_TOKENS", "128000")
+        reserve_factory = model_app.OpenRouterChat
+        reply = httpx.Response(200, json={
+            "model": backup_model, "choices": [{
+                "index": 0, "finish_reason": "stop",
+                "message": {"role": "assistant", "content": canonical(answers())},
+            }],
+        })
+        configured.setattr(model_app, "OpenRouterChat", lambda *args, **kwargs: reserve_factory(
+            *args, **kwargs, transport=httpx.MockTransport(lambda _: reply)
+        ))
     with TestClient(model_app.create_configured_app()) as client:
         status = client.get("/api/model-status").json()
         assert (
@@ -326,7 +349,8 @@ def test_configured_gemini_job_preserves_contract_and_audit(configured, mode):
             params={"group_id": "SYNTHETIC", "conversation_id": conversation["conversation_id"]},
         ).json()
         metadata = client.get("/api/evaluation-runs/" + runs[0]["evaluation_id"]).json()
-        assert metadata["provider"] == "gemini"
+        actual_provider = "openrouter" if mode == "reserve" else "gemini"
+        assert metadata["provider"] == actual_provider
         assert metadata["estimated_cost_usd"] is None
         assert "synthetic-key-not-real" not in canonical(metadata)
         assert len(requests) == (2 if mode in {"correction", "transient"} else 1)
@@ -334,14 +358,20 @@ def test_configured_gemini_job_preserves_contract_and_audit(configured, mode):
             assert metadata["error_code"] == "provider_rate_limit"
         else:
             card = client.get("/api/evaluations/" + runs[0]["evaluation_id"]).json()
-            assert card["generation"]["origin"] == "gemini"
+            assert card["generation"]["origin"] == actual_provider
             assert (card["original_result"] is None) == (mode == "partial")
             # Participant 3 consumes this wrapper to display the card and model audit.
             viewer_response = client.get("/api/evaluation-cards/" + runs[0]["evaluation_id"])
             assert viewer_response.status_code == 200
             viewer = viewer_response.json()
             assert viewer["evaluation"] == card
-            assert viewer["runtime"]["model_run"]["provider"] == "gemini"
+            assert viewer["runtime"]["model_run"]["provider"] == actual_provider
+            if mode == "reserve":
+                assert [a["provider"] for a in viewer["runtime"]["model_run"]["attempts"]] == [
+                    "gemini", "openrouter",
+                ]
+                assert card["generation"]["model_id"] == backup_model
+                assert card["original_result"]["total"] == "85.38"
             assert viewer["runtime"]["model_run"]["configured_model"] == GEMINI_MODEL
             assert "synthetic-key-not-real" not in canonical(viewer)
             if mode == "correction":
