@@ -185,3 +185,100 @@ def test_draft_read_stays_consistent_when_another_connection_publishes(client, m
     assert after["base_version_id"] == "freedom-chat@2"
     assert after["revision"] == before["revision"] + 2
     assert after["content"]["criteria"][0]["instruction"] == changed.criteria[0].instruction
+
+
+@pytest.mark.parametrize("zero", ["-0", "-0.0000000", "-0E-28"])
+def test_signed_zero_is_canonical_in_storage_and_calculation(client, zero):
+    from jsonschema import Draft202012Validator
+
+    http, repository = client
+    schema = json.loads((ROOT / "docs/contracts/cqa-team-v1.schema.json").read_text("utf-8"))
+    draft = http.get("/api/checklists/freedom-chat/draft").json()
+    # A real change prevents Decimal equality (-0 == 0) from making PATCH a no-op.
+    draft["content"]["title"] = "Проверка нулевого вклада"
+    draft["content"]["criteria"][3]["levels"][0]["normalized_value"] = zero
+    saved = http.patch("/api/checklists/freedom-chat/draft", json={
+        "expected_revision": draft["revision"], "content": draft["content"],
+    })
+    assert saved.status_code == 200
+    assert saved.json()["content"]["criteria"][3]["levels"][0]["normalized_value"] == "0"
+    published = http.post("/api/checklists/freedom-chat/versions", json={
+        "expected_revision": saved.json()["revision"],
+    })
+    assert published.status_code == 200
+    version_id = published.json()["checklist_version_id"]
+    fetched = http.get(f"/api/checklist-versions/{version_id}").json()
+    for version in (published.json(), fetched):
+        Draft202012Validator(schema).validate(version)
+        assert version["criteria"][3]["levels"][0]["normalized_value"] == "0"
+    reopened = ChecklistRepository(repository.path).get_version(version_id)
+    ratio = reopened.criteria[3].levels[0].normalized_value
+    assert ratio == Decimal(0) and not ratio.is_signed()
+    connection = sqlite3.connect(repository.path)
+    try:
+        stored = json.loads(connection.execute(
+            "SELECT payload FROM cqa_checklist_versions WHERE version_id = ?", (version_id,),
+        ).fetchone()[0])
+        assert stored["criteria"][3]["levels"][0]["normalized_value"] == "0"
+    finally:
+        connection.close()
+    values = {"01": True, "02": None, "03": None, "04": 0, "05": True,
+              "06": 7, "07": True, "08": False}
+    calculated = http.post(f"/api/checklist-versions/{version_id}/calculate", json={
+        "answers": [
+            {"criterion_id": key, "value": value,
+             "applicability": "not_applicable" if value is None else "applicable"}
+            for key, value in values.items()
+        ],
+    })
+    assert calculated.status_code == 200
+    result = calculated.json()["result"]
+    Draft202012Validator({
+        "$ref": "#/$defs/calculated_result", "$defs": schema["$defs"],
+    }).validate(result)
+    row = next(item for item in result["criteria"] if item["criterion_id"] == "04")
+    assert row["normalized_value"] == "0"
+    assert row["earned_points"] == "0.00"
+    assert row["weighted_contribution"] == "0.0000"
+    assert result["total"] == "62.31"
+
+
+def test_legacy_signed_zero_is_normalized_on_read_without_rewriting_version(client):
+    from jsonschema import Draft202012Validator
+
+    http, repository = client
+    version = http.get("/api/checklist-versions/freedom-chat@1").json()
+    version["criteria"][3]["levels"][0]["normalized_value"] = "-0"
+    legacy_payload = json.dumps(version)
+    connection = sqlite3.connect(repository.path)
+    try:
+        # Simulate a version stored by the previous release.
+        connection.execute(
+            "UPDATE cqa_checklist_versions SET payload = ? WHERE version_id = ?",
+            (legacy_payload, "freedom-chat@1"),
+        )
+        connection.commit()
+        fetched = http.get("/api/checklist-versions/freedom-chat@1").json()
+        assert fetched["criteria"][3]["levels"][0]["normalized_value"] == "0"
+        schema = json.loads((ROOT / "docs/contracts/cqa-team-v1.schema.json").read_text("utf-8"))
+        Draft202012Validator(schema).validate(fetched)
+        internal = repository.get_version("freedom-chat@1").criteria[3].levels[0]
+        assert not internal.normalized_value.is_signed()
+        assert connection.execute(
+            "SELECT payload FROM cqa_checklist_versions WHERE version_id = ?",
+            ("freedom-chat@1",),
+        ).fetchone()[0] == legacy_payload
+    finally:
+        connection.close()
+
+
+def test_negative_nonzero_scale_ratio_is_still_rejected(client):
+    http, _ = client
+    before = http.get("/api/checklists/freedom-chat/draft").json()
+    content = json.loads(json.dumps(before["content"]))
+    content["criteria"][3]["levels"][0]["normalized_value"] = "-0.0000001"
+    rejected = http.patch("/api/checklists/freedom-chat/draft", json={
+        "expected_revision": before["revision"], "content": content,
+    })
+    assert rejected.status_code == 422
+    assert http.get("/api/checklists/freedom-chat/draft").json() == before
