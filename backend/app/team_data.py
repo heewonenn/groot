@@ -2,11 +2,13 @@
 
 import json
 import os
+import re
 import sqlite3
 from collections.abc import Awaitable, Callable
 from contextlib import closing
+from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import BinaryIO, Literal
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, unquote_plus, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
@@ -15,7 +17,7 @@ from fastapi import APIRouter, HTTPException, Response
 from fastapi import Request as APIRequest
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 
 class DataRoute(APIRoute):
@@ -47,12 +49,19 @@ class SourceMessage(BaseModel):
     speaker: Literal["client", "operator", "bot", "system"]
     text: str
 
+    @field_validator("text")
+    @classmethod
+    def require_text(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("empty message")
+        return value
+
 
 class SourceConversation(BaseModel):
     conversation_id: str
     channel: Literal["agent chat", "voice call"]
     language: Literal["RU", "KZ", "EN"]
-    transcript: list[SourceMessage]
+    transcript: list[SourceMessage] = Field(min_length=1)
     audio_url: str | None
 
 
@@ -110,12 +119,40 @@ def source_url(group_id: str) -> str:
     return urlunsplit((parts.scheme, parts.netloc, parts.path, "&".join(query), ""))
 
 
+def read_snapshot(stream: BinaryIO) -> dict:
+    try:
+        limit = int(os.getenv("CQA_IMPORT_MAX_BYTES", str(10 * 1024 * 1024)))
+    except ValueError:
+        limit = 0
+    if limit <= 0:
+        raise HTTPException(503, "Проверьте настройку ограничения размера набора.")
+    raw = stream.read(limit + 1)
+    if len(raw) > limit:
+        raise HTTPException(413, "Набор превышает ограничение размера.")
+    return json.loads(raw)
+
+
+def valid_timestamp(channel: str, stamp: str) -> bool:
+    if channel == "agent chat":
+        return re.fullmatch(r"[0-9]{2,}:[0-5][0-9]", stamp) is not None
+    if not re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+        r"(?:[.,][0-9]+)?(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])", stamp,
+    ):
+        return False
+    try:
+        datetime.fromisoformat(stamp)
+    except ValueError:
+        return False
+    return True
+
+
 def fetch_group(group_id: str) -> dict:
     url = source_url(group_id)
     try:
         request = Request(url, headers={"Accept": "application/json"})
         with urlopen(request, timeout=45) as response:
-            return json.load(response)
+            return read_snapshot(response)
     except HTTPError as exc:
         raise HTTPException(502, f"API организаторов вернул HTTP {exc.code}.") from None
     except OSError, URLError, ValueError:
@@ -136,12 +173,19 @@ def validate_group(group_id: str, envelope: dict) -> list[SourceConversation]:
     total = batch.get("total_records")
     if not isinstance(records, list) or type(total) is not int or total != len(records):
         raise HTTPException(502, "Количество записей в ответе не совпало с total_records.")
-    try:
-        conversations = [SourceConversation.model_validate(record) for record in records]
-    except ValidationError:
-        raise HTTPException(
-            502, "В полученном наборе нарушена структура диалога или реплики."
-        ) from None
+    conversations = []
+    for index, record in enumerate(records):
+        try:
+            parsed = SourceConversation.model_validate(record)
+        except ValidationError as exc:
+            location = exc.errors(include_input=False, include_context=False)[0]["loc"]
+            field = ".".join(str(part) for part in ("records", index, *location))
+            raise HTTPException(502, f"Неверное поле набора: {field}.") from None
+        for position, message in enumerate(parsed.transcript):
+            if not valid_timestamp(parsed.channel, message.timestamp):
+                field = f"records.{index}.transcript.{position}.timestamp"
+                raise HTTPException(502, f"Неверное поле набора: {field}.")
+        conversations.append(parsed)
     ids = {conv.conversation_id for conv in conversations}
     if any(not cid.strip() for cid in ids) or len(ids) != len(conversations):
         raise HTTPException(502, "В наборе есть пустые или повторяющиеся conversation_id.")

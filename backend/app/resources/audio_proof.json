@@ -1,0 +1,156 @@
+{
+  "p4-ru-001": {
+    "transcript_sha256": "2413fd98f2def52748d0d1cea7a066dc760a559e5edeb12583d90a953dc00ae6",
+    "audio_sha256": "7fb1091a64b9275b0f76414b0937396adadb9d22cec390dc3fe3936a92565fa4",
+    "duration_seconds": 312.26,
+    "anchors": [
+      {
+        "turn_index": 4,
+        "start_seconds": 17.85,
+        "end_seconds": 20.91,
+        "word_offset": 0,
+        "consecutive_words": 7
+      },
+      {
+        "turn_index": 7,
+        "start_seconds": 44.94,
+        "end_seconds": 46.8,
+        "word_offset": 0,
+        "consecutive_words": 5
+      },
+      {
+        "turn_index": 26,
+        "start_seconds": 140.25,
+        "end_seconds": 146.13,
+        "word_offset": 0,
+        "consecutive_words": 15
+      },
+      {
+        "turn_index": 35,
+        "start_seconds": 222.81,
+        "end_seconds": 226.05,
+        "word_offset": 0,
+        "consecutive_words": 8
+      },
+      {
+        "turn_index": 42,
+        "start_seconds": 285.0,
+        "end_seconds": 286.23,
+        "word_offset": 0,
+        "consecutive_words": 5
+      }
+    ]
+  },
+  "p4-ru-002": {
+    "transcript_sha256": "beb49cf150b1769a2328af3a29a7dc7fa8ddde2da42859f983c1e98794e92b3b",
+    "audio_sha256": "d33850a459d553c71acabaec1e171860b7e36835349ec06d294c07250002c5eb",
+    "duration_seconds": 620.38,
+    "anchors": [
+      {
+        "turn_index": 8,
+        "start_seconds": 9.86,
+        "end_seconds": 13.7,
+        "word_offset": 7,
+        "consecutive_words": 10
+      },
+      {
+        "turn_index": 22,
+        "start_seconds": 143.94,
+        "end_seconds": 145.98,
+        "word_offset": 0,
+        "consecutive_words": 5
+      },
+      {
+        "turn_index": 66,
+        "start_seconds": 600.36,
+        "end_seconds": 601.68,
+        "word_offset": 1,
+        "consecutive_words": 6
+      }
+    ]
+  },
+  "p4-ru-003": {
+    "transcript_sha256": "477d8e1227f3a5c7734e91d3773826068c4cca37dbe240a56bfc74dc2fa31291",
+    "audio_sha256": "a867ad414348b3c1c84a5cd0345d925512c62d9a564c19d22162f6f5606b7446",
+    "duration_seconds": 393.22,
+    "anchors": [
+      {
+        "turn_index": 2,
+        "start_seconds": 3.84,
+        "end_seconds": 7.44,
+        "word_offset": 8,
+        "consecutive_words": 6
+      },
+      {
+        "turn_index": 21,
+        "start_seconds": 106.47,
+        "end_seconds": 109.56,
+        "word_offset": 10,
+        "consecutive_words": 8
+      },
+      {
+        "turn_index": 70,
+        "start_seconds": 355.29,
+        "end_seconds": 358.98,
+        "word_offset": 20,
+        "consecutive_words": 8
+      }
+    ]
+  },
+  "p4-ru-004": {
+    "transcript_sha256": "2d3e20b8c30b2d05b46677c3d6ad0b97251abd61a485fbf57bb4376ec17a6c56",
+    "audio_sha256": "aeaf1e65f6f09af4781b6f3f8a15edc2cfca4f7c267cb80618483fa689bcbff8",
+    "duration_seconds": 424.02,
+    "anchors": [
+      {
+        "turn_index": 5,
+        "start_seconds": 19.23,
+        "end_seconds": 22.26,
+        "word_offset": 0,
+        "consecutive_words": 7
+      },
+      {
+        "turn_index": 62,
+        "start_seconds": 214.08,
+        "end_seconds": 215.64,
+        "word_offset": 0,
+        "consecutive_words": 8
+      },
+      {
+        "turn_index": 109,
+        "start_seconds": 395.91,
+        "end_seconds": 399.42,
+        "word_offset": 0,
+        "consecutive_words": 9
+      }
+    ]
+  },
+  "p4-ru-005": {
+    "transcript_sha256": "b4bff05197d8d7b18dbdbe159d86d33676262a7e8489693498609b84c631e411",
+    "audio_sha256": "71ec8f09b65a19c79de0d84703910bc06fbcff826bee16c653c72c901335e16a",
+    "duration_seconds": 345.34,
+    "anchors": [
+      {
+        "turn_index": 6,
+        "start_seconds": 25.62,
+        "end_seconds": 26.7,
+        "word_offset": 0,
+        "consecutive_words": 5
+      },
+      {
+        "turn_index": 29,
+        "start_seconds": 142.62,
+        "end_seconds": 147.84,
+        "word_offset": 0,
+        "consecutive_words": 11
+      },
+      {
+        "turn_index": 72,
+        "start_seconds": 337.14,
+        "end_seconds": 339.69,
+        "word_offset": 0,
+        "consecutive_words": 7
+      }
+    ]
+  }
+}
