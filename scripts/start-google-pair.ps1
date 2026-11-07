@@ -1,27 +1,44 @@
 # Start the requested Google-only CQA profile from any directory.
+#Requires -Version 7.0
+param([switch]$CheckOnly)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $python = Join-Path $repo '.venv\Scripts\python.exe'
 if (!(Test-Path -LiteralPath $python)) { throw 'Run scripts/setup.ps1 first.' }
 $Host.UI.RawUI.WindowTitle = 'CQA - Gemini + Gemma'
-if (!$env:GEMINI_API_KEY) {
-    $secret = Read-Host 'Paste the Google AI Studio key (hidden), then press Enter' -AsSecureString
-    $env:GEMINI_API_KEY = [System.Net.NetworkCredential]::new('', $secret).Password.Trim()
-    $secret.Dispose()
-}
-if (!$env:GEMINI_API_KEY) { throw 'No key entered.' }
 $env:CQA_MODEL_ENABLED = '1'
 $env:CQA_MODEL_PROVIDER = 'gemini'
 $env:CQA_MODEL = 'gemini-2.5-flash'
 $env:CQA_FALLBACK_PROVIDER = 'gemini'
 $env:CQA_FALLBACK_MODEL = 'gemma-3-27b-it'
-function Get-ModelContext([string]$id) {
+function Get-ModelContext([string]$id, [string]$key) {
     $uri = "https://generativelanguage.googleapis.com/v1beta/models/$id"
     try {
-        $m = Invoke-RestMethod -Uri $uri -Headers @{'x-goog-api-key'=$env:GEMINI_API_KEY} -TimeoutSec 15
+        $m = Invoke-RestMethod -Uri $uri -Headers @{'x-goog-api-key'=$key} -TimeoutSec 15 `
+            -MaximumRedirection 0 -SkipHttpErrorCheck -StatusCodeVariable httpCode
     } catch {
-        $status = $_.Exception.Response.StatusCode
-        throw "Cannot look up $id in this Google project (HTTP $status). Check the key and model access in AI Studio."
+        throw "Не удалось связаться с каталогом Google для $id. Проверьте подключение к сети."
+    }
+    if ($httpCode -ne 200) {
+        # Map known Google errors to safe messages. Never print the raw response or request headers.
+        $reasons = @($m.error.details | ForEach-Object { $_.reason })
+        if ($httpCode -eq 401 -or 'API_KEY_INVALID' -in $reasons -or 'API_KEY_EXPIRED' -in $reasons -or
+            $m.error.message -match 'API key (?:not valid|expired)') {
+            throw [System.Security.Authentication.AuthenticationException]::new(
+                "Google отклонил ключ (HTTP $httpCode). Заново скопируйте его кнопкой Copy API key."
+            )
+        }
+        $hint = if ($m.error.message -match 'user location is not supported') {
+            'Google сообщает, что регион запроса не поддерживается.'
+        } else {
+            switch ([int]$httpCode) {
+                403 { 'Проверьте ограничения ключа и доступ проекта к Gemini API.' }
+                404 { 'Google не нашёл эту модель для вашего проекта. Проверьте список моделей.' }
+                429 { 'Google ограничил частоту запросов. Проверьте квоту проекта в AI Studio.' }
+                default { 'Проверьте доступ проекта к модели в AI Studio.' }
+            }
+        }
+        throw "Каталог Google, $id (HTTP $httpCode). $hint"
     }
     if ($m.supportedGenerationMethods -notcontains 'generateContent' -or !($m.inputTokenLimit -gt 0)) {
         throw "Google does not list a usable generateContent endpoint for $id in this project."
@@ -30,8 +47,31 @@ function Get-ModelContext([string]$id) {
     return [string]$m.inputTokenLimit
 }
 # Metadata requests only. Inference starts when the operator submits an evaluation job.
-$env:CQA_CONTEXT_TOKENS = Get-ModelContext $env:CQA_MODEL
-$env:CQA_FALLBACK_CONTEXT_TOKENS = Get-ModelContext $env:CQA_FALLBACK_MODEL
+$key = $env:GEMINI_API_KEY
+while ($true) {
+    if (!$key) {
+        $secret = Read-Host 'Вставьте ключ из AI Studio правой кнопкой или Shift+Insert, затем Enter (скрытый ввод)' -AsSecureString
+        try { $key = [System.Net.NetworkCredential]::new('', $secret).Password.Trim() }
+        finally { $secret.Dispose() }
+        if (!$key) { Write-Host 'Запуск отменён.'; return }
+    }
+    try {
+        if ($key.Length -eq 1 -or $key -match '[\s\p{Cc}]') {
+            throw [System.Security.Authentication.AuthenticationException]::new(
+                'Вставка неполная или содержит пробелы. Скопируйте ключ целиком кнопкой Copy API key.'
+            )
+        }
+        $env:CQA_CONTEXT_TOKENS = Get-ModelContext $env:CQA_MODEL $key
+        $env:CQA_FALLBACK_CONTEXT_TOKENS = Get-ModelContext $env:CQA_FALLBACK_MODEL $key
+        break
+    } catch [System.Security.Authentication.AuthenticationException] {
+        Write-Warning $_.Exception.Message
+        Remove-Item Env:GEMINI_API_KEY -ErrorAction SilentlyContinue
+        $key = $null
+    }
+}
+if ($CheckOnly) { return }
+$env:GEMINI_API_KEY = $key
 Push-Location $repo
 try {
     & $python -m uvicorn backend.app.model_app:create_configured_app --factory --host 127.0.0.1 --port 8765
