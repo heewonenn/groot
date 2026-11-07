@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from backend.app.evaluation.contract import PROMPT_VERSION, evidence_quotes
 from backend.app.evaluation.engine import ModelEvaluator
+from backend.app.evaluation.gemini import GEMINI_MODEL, GeminiGenerateContent
 from backend.app.evaluation.knowledge import Knowledge
 from backend.app.evaluation.provider import OpenAIResponses
 from backend.app.evaluation.store import RunStore
@@ -25,9 +26,12 @@ def _number(name: str, default: str, low: float, high: float) -> float:
 def configured_evaluator() -> tuple[ModelEvaluator | None, str | None]:
     if os.getenv("CQA_MODEL_ENABLED", "").lower() not in {"1", "true"}:
         return None, "model_disabled"
-    if os.getenv("CQA_MODEL_PROVIDER", "openai") != "openai":
+    provider_name = os.getenv("CQA_MODEL_PROVIDER", "openai").strip()
+    if provider_name not in {"openai", "gemini"}:
         return None, "provider_not_supported"
-    model, key = os.getenv("CQA_MODEL", "").strip(), os.getenv("OPENAI_API_KEY", "").strip()
+    model = os.getenv("CQA_MODEL", GEMINI_MODEL if provider_name == "gemini" else "").strip()
+    key_name = "GEMINI_API_KEY" if provider_name == "gemini" else "OPENAI_API_KEY"
+    key = os.getenv(key_name, "").strip()
     if not model or not key or not os.getenv("CQA_CONTEXT_TOKENS"):
         return None, "model_configuration_missing"
     try:
@@ -39,12 +43,19 @@ def configured_evaluator() -> tuple[ModelEvaluator | None, str | None]:
             rates[f"{side}_usd_per_million"] = (
                 _number(name, "0", 0, 1_000_000) if os.getenv(name) else None
             )
-        evaluator = ModelEvaluator(
-            OpenAIResponses(
+        max_output = int(_number("CQA_MAX_OUTPUT_TOKENS", "12000", 512, 32000))
+        provider = (
+            GeminiGenerateContent(
                 model,
                 key,
-                max_output_tokens=int(_number("CQA_MAX_OUTPUT_TOKENS", "12000", 512, 32000)),
-            ),
+                max_output_tokens=max_output,
+                thinking_level=os.getenv("CQA_GEMINI_THINKING_LEVEL", "medium"),
+            )
+            if provider_name == "gemini"
+            else OpenAIResponses(model, key, max_output_tokens=max_output)
+        )
+        evaluator = ModelEvaluator(
+            provider,
             RunStore(),
             knowledge=knowledge,
             request_timeout=_number("CQA_REQUEST_TIMEOUT", "60", 1, 120),
