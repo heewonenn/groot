@@ -1,6 +1,6 @@
 # Start the requested Google-only CQA profile from any directory.
 #Requires -Version 7.0
-param([switch]$CheckOnly)
+param([switch]$CheckOnly, [switch]$KeyDialog)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $python = Join-Path $repo '.venv\Scripts\python.exe'
@@ -11,6 +11,44 @@ $env:CQA_MODEL_PROVIDER = 'gemini'
 $env:CQA_MODEL = 'gemini-2.5-flash'
 $env:CQA_FALLBACK_PROVIDER = 'gemini'
 $env:CQA_FALLBACK_MODEL = 'gemma-3-27b-it'
+function Read-GoogleKeyDialog([string]$notice) {
+    Add-Type -AssemblyName PresentationFramework
+    [xml]$layout = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        Title="CQA — подключение Google" Width="460" SizeToContent="Height"
+        ResizeMode="NoResize" WindowStartupLocation="CenterScreen">
+  <StackPanel Margin="22">
+    <TextBlock TextWrapping="Wrap" Margin="0,0,0,12">В Google AI Studio нажмите Copy API key. Вернитесь сюда и вставьте ключ в поле с помощью Ctrl+V.</TextBlock>
+    <PasswordBox Name="KeyBox" Height="32" Padding="5" AutomationProperties.Name="Ключ Google AI Studio"/>
+    <TextBlock Name="Hint" TextWrapping="Wrap" Margin="0,8,0,16"/>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button IsCancel="True" Padding="12,5" Margin="0,0,8,0">Отмена</Button>
+      <Button Name="Connect" IsDefault="True" IsEnabled="False" Padding="12,5">Подключить</Button>
+    </StackPanel>
+  </StackPanel>
+</Window>
+'@
+    $reader = [System.Xml.XmlNodeReader]::new($layout)
+    try { $window = [System.Windows.Markup.XamlReader]::Load($reader) }
+    finally { $reader.Dispose() }
+    $box = $window.FindName('KeyBox')
+    $button = $window.FindName('Connect')
+    $hint = $window.FindName('Hint')
+    $hint.Text = if ($notice) { $notice } else { 'Поле пустое.' }
+    $box.Add_PasswordChanged({
+        $entry = $box.SecurePassword
+        try { $length = $entry.Length } finally { $entry.Dispose() }
+        $button.IsEnabled = $length -gt 1
+        $hint.Text = if ($length -eq 0) { 'Поле пустое.' }
+            elseif ($length -eq 1) { 'Введён один символ. Вставьте ключ целиком.' }
+            else { "Введено символов: $length" }
+    })
+    $button.Add_Click({ $window.DialogResult = $true })
+    $window.Add_ContentRendered({ [void]$box.Focus() })
+    try {
+        if ($window.ShowDialog() -eq $true) { return $box.SecurePassword }
+    } finally { $box.Clear() }
+}
 function Get-ModelContext([string]$id, [string]$key) {
     $uri = "https://generativelanguage.googleapis.com/v1beta/models/$id"
     try {
@@ -48,9 +86,13 @@ function Get-ModelContext([string]$id, [string]$key) {
 }
 # Metadata requests only. Inference starts when the operator submits an evaluation job.
 $key = $env:GEMINI_API_KEY
+$notice = ''
 while ($true) {
     if (!$key) {
-        $secret = Read-Host 'Вставьте ключ из AI Studio правой кнопкой или Shift+Insert, затем Enter (скрытый ввод)' -AsSecureString
+        $secret = if ($KeyDialog) { Read-GoogleKeyDialog $notice } else {
+            Read-Host 'Вставьте ключ из AI Studio правой кнопкой или Shift+Insert, затем Enter (скрытый ввод)' -AsSecureString
+        }
+        if ($null -eq $secret) { Write-Host 'Запуск отменён.'; return }
         try { $key = [System.Net.NetworkCredential]::new('', $secret).Password.Trim() }
         finally { $secret.Dispose() }
         if (!$key) { Write-Host 'Запуск отменён.'; return }
@@ -65,7 +107,8 @@ while ($true) {
         $env:CQA_FALLBACK_CONTEXT_TOKENS = Get-ModelContext $env:CQA_FALLBACK_MODEL $key
         break
     } catch [System.Security.Authentication.AuthenticationException] {
-        Write-Warning $_.Exception.Message
+        $notice = $_.Exception.Message
+        Write-Warning $notice
         Remove-Item Env:GEMINI_API_KEY -ErrorAction SilentlyContinue
         $key = $null
     }
