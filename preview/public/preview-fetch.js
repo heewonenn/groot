@@ -117,6 +117,21 @@ globalThis.__CQA_PREVIEW_BOOT__ = (async function installPreviewApi() {
     if (method === 'GET' && parts[1] === 'capabilities') return reply(200, {
       model_available: false, audio_playback: false, acoustic_scoring: false, product_reference: false, static_preview: true,
     });
+    if (method === 'GET' && parts[1] === 'model-status' && parts.length === 2) {
+      return reply(200, fixture.model_status);
+    }
+    if (method === 'GET' && parts[1] === 'evaluation-runs') {
+      if (parts.length === 2) {
+        const group = url.searchParams.get('group_id');
+        const conversation = url.searchParams.get('conversation_id');
+        if (!group || !conversation || group.length > 200 || conversation.length > 200) {
+          return error(422, 'Укажите группу и диалог для истории запусков.');
+        }
+        // Manually authored preview cards have no inference attempts or measured costs.
+        return reply(200, []);
+      }
+      return error(404, 'Запуск модели не найден. Статический предпросмотр не вызывает AI.');
+    }
     if (parts[1] === 'groups') {
       if (parts[2] !== 'SYNTHETIC') return error(404, 'В предпросмотре доступна только синтетическая группа SYNTHETIC.');
       if (method !== 'GET') return error(405, 'Импорт доступен в полной локальной сборке.');
@@ -226,7 +241,8 @@ globalThis.__CQA_PREVIEW_BOOT__ = (async function installPreviewApi() {
     }
     if (method === 'POST' && parts[1] === 'submissions') return error(422,
       'Демонстрационные данные нельзя сдавать как results.json. Нужны настоящие запуски модели на полном наборе DEV или PROD в локальной сборке.');
-    if (method === 'POST' && parts[1] === 'evaluation-jobs') return error(503, 'Модуль модели участника №2 ещё не подключён. Предпросмотр не запускает AI.');
+    if (method === 'POST' && parts[1] === 'evaluation-jobs') return error(503,
+      'Статический предпросмотр не запускает AI. Для оценки выбранной моделью запустите полную локальную сборку.');
     if (method === 'GET' && parts[1] === 'checklist-versions') {
       const version = fixture.checklists.find(v => v.checklist_version_id === parts[2]);
       return version ? reply(200, version) : error(404, 'Версия не найдена.');

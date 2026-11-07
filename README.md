@@ -21,6 +21,9 @@ Participant 3 adds the [quality workspace](http://127.0.0.1:5173/analysis),
 evidence navigation, persistent appeals and original/final score history.
 Start with the [Windows launch and participant 3 guide](docs/PARTICIPANT_3_GUIDE.md).
 The optional synthetic demo is enabled explicitly; it is not a model evaluation.
+Participant 2 is now integrated with this workspace: explicit evaluation launches,
+saved checklist versions, progress/retry, source quotes and model run metadata.
+See [model integration and remaining configuration](docs/PARTICIPANT_3_MODEL_INTEGRATION.md).
 
 Team handoff: [four-participant implementation plan](docs/TEAM_IMPLEMENTATION_PLAN.md) and [shared data contracts and fixtures](docs/contracts/README.md). DEV examples under `data/examples/team-zip-v1` are local and ignored by Git; public examples are synthetic and are not model-quality labels.
 
@@ -79,7 +82,7 @@ pwsh -NoProfile -File scripts/setup.ps1
 Open this folder in VS Code. In two terminals at the repository root:
 
 ```powershell
-.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8765
+.\.venv\Scripts\python.exe -m uvicorn backend.app.model_app:create_configured_app --factory --reload --host 127.0.0.1 --port 8765
 ```
 
 ```powershell
@@ -91,6 +94,9 @@ Open http://127.0.0.1:5173. The page should say **API connected**.
 Open http://127.0.0.1:5173/checklists for the checklist editor and manual arithmetic check.
 API docs: http://127.0.0.1:8765/docs. Stop each server with Ctrl+C.
 Alternatively run the `Backend: dev` and `Frontend: dev` VS Code tasks.
+The factory includes all four modules. A provider is disabled until explicitly
+configured; configuration alone does not create a model request. The original
+`backend.app.main:app` remains available without the model audit routes.
 No paid API, external database service, dataset or model is required. The checklist
 module creates a local SQLite database at `data/cqa.sqlite3` on its first API request;
 this file is ignored by Git. Set `CQA_DB_PATH` in the backend process environment to

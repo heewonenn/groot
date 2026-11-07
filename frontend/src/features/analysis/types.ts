@@ -1,3 +1,5 @@
+import type { ModelRun } from './modelTypes'
+
 export type Value = boolean | number | null
 export interface Evidence {
   group_id: string
@@ -36,6 +38,7 @@ export interface Checklist {
   checklist_version_id: string
   title: string
   version: number
+  channels: string[]
   sections: { id: string; title: string }[]
   criteria: Criterion[]
 }
@@ -112,7 +115,7 @@ export interface Card {
   final_status: 'completed' | 'partial' | 'failed'
   appeals: Appeal[]
   runtime: { job_id: string; started_at: string | null; finished_at: string | null;
-    model_config: Record<string, unknown> }
+    model_config: Record<string, unknown>; model_run?: ModelRun | null }
 }
 export interface EvaluationSummary {
   evaluation_id: string

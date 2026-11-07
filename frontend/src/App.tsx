@@ -31,7 +31,7 @@ function WorkspaceHome() {
         <p role="status" aria-live="polite" className="my-4 text-slate-600">{status}</p>
         <button onClick={() => void checkHealth()} className="rounded-lg bg-teal-700 px-4 py-2 font-medium text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700">Check again</button>
       </section>
-      <p className="mt-8 text-sm text-slate-500">Редактор чек-листов и API диалогов подключены. Автоматическая оценка моделью ещё не подключена.</p>
+      <p className="mt-8 text-sm text-slate-500">Карточка, апелляции и модуль модели объединены. Статус настройки модели и запуск оценки доступны в рабочем месте контроля качества.</p>
     </main>
   )
 }

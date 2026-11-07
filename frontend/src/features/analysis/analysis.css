@@ -310,3 +310,55 @@
   .an-calculation-stats dt { font-size:9px; }
   .an-evidence-button { min-height:40px; }
 }
+
+/* Model integration retains the same workspace panels and typography. */
+.an-launcher { margin-top:16px; padding:17px 19px; }
+.an-launch-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
+.an-launch-heading h2 { margin-top:4px; font-size:16px; font-weight:650; }
+.an-launch-heading .an-text-button { font-size:11px!important; }
+.an-launcher>.an-note,.an-launcher>.an-model-ready { margin-bottom:12px; }
+.an-model-ready { padding:9px 11px; border:1px solid #d9e5c9; border-radius:5px; background:#f3f7eb; color:#4c6b37; font-size:12px; }
+.an-launcher code { overflow-wrap:anywhere; font-size:10px; }
+.an-launch-controls { display:flex; align-items:flex-end; gap:10px; margin:12px 0 6px; }
+.an-launch-controls label { flex:1; }
+.an-launch-controls .an-button { min-height:36px; white-space:nowrap; }
+.an-job-progress { margin-top:15px; padding:12px; border:1px solid #e1e8d7; border-radius:6px; background:#fafbf7; }
+.an-job-heading { display:flex; justify-content:space-between; align-items:center; gap:14px; font-size:13px; }
+.an-job-heading code { color:#7b886d; text-align:right; }
+.an-job-progress p { margin-top:8px; font-size:12px; color:#637457; }
+.an-job-progress progress { display:block; width:100%; height:8px; margin-top:10px; accent-color:#9ab76c; }
+.an-job-progress>.an-button { margin-top:10px; }
+.an-model-audit>.an-hint { margin:10px 20px 13px; }
+.an-model-attempts ol,.an-model-quotes ol { list-style:none; margin:10px 0 0; padding:0; }
+.an-model-attempts li,.an-model-quotes li { margin:0 0 12px; padding:10px; border:1px solid #e5eadb; border-radius:5px; font-size:11px; color:#637751; }
+.an-model-attempts p,.an-model-quotes p { margin-top:6px; }
+.an-model-attempt-error { color:#995839!important; }
+.an-model-quotes blockquote { margin:9px 0; padding:8px 10px; border-left:2px solid #b9cc9b; background:#f7f9f1; overflow-wrap:anywhere; }
+.an-model-quotes blockquote span { font-size:10px; color:#7d8b6b; }
+.an-model-quotes blockquote p { color:#586e46; font-size:12px; white-space:pre-wrap; }
+.an-model-quotes code { font-size:9px!important; }
+.an-analysis-scope { margin-top:10px; font-size:11px; color:#6d7b60; }
+.an-analysis-scope ul { margin:7px 0 0; padding:8px 10px; list-style:none; border:1px solid #e4e9d9; border-radius:5px; }
+.an-analysis-scope li+li { margin-top:7px; }
+.an-analysis-scope code { display:block; margin-top:2px; font-size:10px; overflow-wrap:anywhere; }
+.an-model-history { margin-top:14px; padding-top:11px; border-top:1px solid #e7ebdf; color:#697d55; font-size:12px; }
+.an-model-history summary { cursor:pointer; }
+.an-model-history>.an-hint { margin-top:9px; }
+.an-model-history ol { margin:10px 0 0; padding:0; list-style:none; }
+.an-model-history li { padding:11px; margin-top:8px; border:1px solid #e4e9db; border-radius:5px; background:#fafbf7; }
+.an-model-history p { margin-top:5px; font-size:11px; }
+.an-model-history-heading { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+.an-model-history-heading span { font-size:10px; color:#83916e; }
+.an-model-history code { display:block; margin-top:6px; color:#7e8d6b; font-size:10px; overflow-wrap:anywhere; }
+@media(max-width:920px) {
+  .an-launch-controls { flex-wrap:wrap; }
+  .an-launch-controls label { flex-basis:100%; }
+  .an-job-heading { align-items:flex-start; flex-direction:column; gap:4px; }
+  .an-job-heading code { text-align:left; }
+}
+@media(max-width:620px) {
+  .an-launcher { padding:14px; }
+  .an-launch-heading { flex-wrap:wrap; }
+  .an-launch-controls .an-button { min-height:44px; flex:1; }
+  .an-launcher .an-text-button { min-height:34px; }
+}

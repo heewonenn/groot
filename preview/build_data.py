@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from backend.app.api.checklists import get_repository  # noqa: E402
+from backend.app.evaluation.contract import PROMPT_VERSION  # noqa: E402
 from backend.app.schemas.checklists import ScoringAnswer  # noqa: E402
 from backend.app.services.scoring import calculate  # noqa: E402
 from backend.app.team_data import connect, get_conversation, list_conversations  # noqa: E402
@@ -80,6 +81,7 @@ def build(output: Path) -> dict:
                         "job_id": item["job_id"], "started_at": item["started_at"],
                         "finished_at": item["finished_at"],
                         "model_config": json.loads(item["settings"]),
+                        "model_run": None,
                     },
                 })
             rows, sections, results = Pool(), Pool(), Pool()
@@ -117,6 +119,16 @@ def build(output: Path) -> dict:
                     "Результаты заранее рассчитаны настоящим модулем участника 1. "
                     "Модель не вызывается; это не результаты DEV/PROD или Ground Truth."
                 ),
+                "model_status": {
+                    "configured": False,
+                    "ready": False,
+                    "reason": "static_preview",
+                    "provider": None,
+                    "model": None,
+                    "prompt_version": PROMPT_VERSION,
+                    "audio_analysed": False,
+                    "knowledge_version": None,
+                },
                 "conversations": conversations, "cards": cards,
                 "checklists": [v.model_dump(mode="json") for v in versions.values()],
                 "checklist_summaries": [

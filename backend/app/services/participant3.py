@@ -113,6 +113,45 @@ def _final_answers(card: dict, appeals: list[dict]) -> list[dict]:
     return answers
 
 
+def _model_run(db: sqlite3.Connection, card: dict) -> dict | None:
+    """Read safe participant-2 metadata in the card's existing transaction.
+
+    Old and hand-authored cards legitimately have no model run. Do not construct
+    RunStore here: its DDL would acquire a second connection during a review.
+    """
+    if db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='cqa_model_runs'"
+    ).fetchone() is None:
+        return None
+    row = db.execute(
+        "SELECT group_id,conversation_id,metadata FROM cqa_model_runs WHERE evaluation_id=?",
+        (card["evaluation_id"],),
+    ).fetchone()
+    if row is None or (row["group_id"], row["conversation_id"]) != (
+        card["group_id"], card["conversation_id"],
+    ):
+        return None
+    try:
+        metadata = json.loads(row["metadata"])
+    except (TypeError, ValueError):
+        return None
+    identity = ("evaluation_id", "group_id", "conversation_id", "checklist_version_id")
+    if not isinstance(metadata, dict) or any(metadata.get(k) != card[k] for k in identity):
+        return None
+    fields = (
+        *identity, "status", "generation_mode", "error_code", "started_at", "finished_at",
+        "provider", "configured_model", "resolved_model", "prompt_version", "knowledge_version",
+        "audio_analysed", "elapsed_ms", "token_usage", "estimated_cost_usd", "cost_basis",
+    )
+    result = {key: metadata.get(key) for key in fields}
+    attempt_fields = ("number", "status", "error_code", "usage", "resolved_model", "elapsed_ms")
+    result["attempts"] = [
+        {key: attempt.get(key) for key in attempt_fields}
+        for attempt in metadata.get("attempts", []) if isinstance(attempt, dict)
+    ]
+    return result
+
+
 def _wrapper(db: sqlite3.Connection, evaluation_id: str) -> dict:
     card, runtime = _card(db, evaluation_id)
     appeals = _appeals(db, evaluation_id)
@@ -130,6 +169,7 @@ def _wrapper(db: sqlite3.Connection, evaluation_id: str) -> dict:
             "job_id": runtime["job_id"],
             "started_at": runtime["started_at"], "finished_at": runtime["finished_at"],
             "model_config": json.loads(runtime["settings"]),
+            "model_run": _model_run(db, card),
         },
     }
 
