@@ -3,7 +3,7 @@
 from decimal import Decimal
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, field_serializer, model_validator
 
 Identifier = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")]
 Title = Annotated[str, Field(min_length=1, max_length=160)]
@@ -27,6 +27,10 @@ class ScaleLevel(Contract):
     normalized_value: Annotated[
         Decimal, Field(ge=0, le=1, allow_inf_nan=False, max_digits=29, decimal_places=28)
     ]
+
+    @field_serializer("normalized_value", when_used="json")
+    def serialize_normalized_value(self, value: Decimal) -> str:
+        return format(value, "f")
 
 
 class Criterion(Contract):

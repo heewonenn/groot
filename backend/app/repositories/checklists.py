@@ -59,8 +59,9 @@ class ChecklistRepository:
         connection.row_factory = sqlite3.Row
         try:
             connection.execute("PRAGMA foreign_keys = ON")
-            if write:
-                connection.execute("BEGIN IMMEDIATE")
+            # SELECT does not start a transaction in sqlite3's legacy mode.
+            # Keep all reads in one snapshot, including draft and latest version.
+            connection.execute("BEGIN IMMEDIATE" if write else "BEGIN")
             yield connection
             connection.commit()
         except BaseException:
