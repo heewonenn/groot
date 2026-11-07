@@ -7,8 +7,11 @@ import pytest
 from scripts import resume_dev
 
 
-@pytest.mark.parametrize(("remaining", "attempts", "expected"), [(30, 1, 0), (50, 2, 20)])
-def test_dev_preserves_reserves_and_limits_restarts(monkeypatch, remaining, attempts, expected):
+@pytest.mark.parametrize(("remaining", "attempts", "expected", "google"),
+                         [(30, 1, 0, False), (50, 2, 20, False), (0, 0, 0, True)])
+def test_dev_preserves_reserves_and_limits_restarts(
+    monkeypatch, remaining, attempts, expected, google
+):
     # Simulate a stale remote counter, including a second invocation the same UTC day.
     monkeypatch.setattr(resume_dev, "remaining", lambda: remaining)
     roots = {f"example-{i}": f"root-{i}" for i in range(35)}
@@ -28,11 +31,13 @@ def test_dev_preserves_reserves_and_limits_restarts(monkeypatch, remaining, atte
             data = {
                 "ready": True,
                 "model": resume_dev.GEMINI,
+                "quota_fallback": {"model": "gemma-4-31b-it"} if google else None,
                 "fallback": {"provider": "openrouter", "model": resume_dev.DOTS},
             }
         elif "/evaluation-runs/" in path:
             data = {"attempts": [{"provider": "gemini"}] + [{"provider": "openrouter"}] * attempts}
         elif path.endswith("/retry"):
+            assert (request.url.params.get("google_only") == "true") == google
             job = path.split("/")[-2]
             data = {"job_id": job.replace("root-", "child-")}
         else:
@@ -65,3 +70,5 @@ def test_dev_preserves_reserves_and_limits_restarts(monkeypatch, remaining, atte
             resume_dev.recover(client, roots, [], 30, 20, ledger)
         assert ledger.execute("SELECT spent FROM usage").fetchone()[0] == expected
     assert len(completed) * attempts == expected
+    if google:
+        assert completed == set(roots)

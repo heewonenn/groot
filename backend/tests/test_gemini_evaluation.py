@@ -14,11 +14,13 @@ from backend.app.evaluation.contract import INSTRUCTIONS, canonical, output_sche
 from backend.app.evaluation.gemini import (
     FLASH_25,
     GEMINI_MODEL,
+    GEMMA_4_31B,
     GEMMA_27B,
     GeminiGenerateContent,
     gemini_usage,
 )
 from backend.app.evaluation.provider import ModelError, OpenAIResponses
+from backend.tests.test_compact_evaluation import compact_answers
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "docs/contracts/examples"
 
@@ -152,6 +154,55 @@ def test_google_pair_revalidates_gemma_after_flash_quota(configured):
     assert attempts[0]["error_code"] == "provider_rate_limit"
     assert attempts[1]["error_code"].startswith("answer_")
     assert attempts[2]["status"] == "completed"
+
+
+@pytest.mark.parametrize("gemma_status,google_only", [(200, False), (429, False), (429, True)])
+def test_gemma4_and_dots_have_independent_routes(configured, gemma_status, google_only):
+    dots = "dots-studio/dots-3-note-preview:free"
+    turns = example("conversation.synthetic.json")
+    short_reply = canonical(compact_answers(turns))
+    configured.setenv("CQA_MODEL", GEMINI_MODEL)
+    configured.setenv("CQA_FALLBACK_PROVIDER", "openrouter")
+    configured.setenv("CQA_FALLBACK_MODEL", dots)
+    configured.setenv("CQA_FALLBACK_CONTEXT_TOKENS", "128000")
+    configured.setenv("OPENROUTER_API_KEY", "synthetic-router-key")
+    evaluator, reason = model_app.configured_evaluator()
+    assert reason is None
+    calls = []
+
+    def handler(request):
+        if request.url.host == "openrouter.ai":
+            calls.append(dots)
+            return httpx.Response(200, json={"model": dots, "choices": [{
+                "finish_reason": "stop",
+                "message": {"role": "assistant", "content": short_reply}
+            }]})
+        model = request.url.path.split("/")[-1].split(":")[0]
+        calls.append(model)
+        if model == GEMINI_MODEL:
+            return httpx.Response(429)
+        assert request.headers["x-goog-api-key"] == "synthetic-key-not-real"
+        assert "Return only JSON" in json.loads(request.content)["contents"][0]["parts"][0]["text"]
+        return httpx.Response(gemma_status, json=envelope(short_reply, modelVersion=model))
+
+    transport = httpx.MockTransport(handler)
+    for route in (evaluator.provider, evaluator.quota_provider, evaluator.fallback_provider):
+        route.transport = transport
+    rules = json.loads((EXAMPLES.parent / "checklists/chat-v1.json").read_bytes())
+    args = ("quota-qa", turns, rules,
+            {"google_only": True} if google_only else {})
+    if google_only and gemma_status == 429:
+        with pytest.raises(ModelError, match="provider_rate_limit"):
+            evaluator(*args)
+    else:
+        result = evaluator(*args)
+        assert result["generation"]["model_id"] == (GEMMA_4_31B if gemma_status == 200 else dots)
+    expected = [GEMINI_MODEL, GEMMA_4_31B]
+    if gemma_status == 429 and not google_only:
+        expected.append(dots)
+    assert calls == expected
+    audit = evaluator.store.get("quota-qa")["metadata"]
+    assert [a["configured_model"] for a in audit["attempts"]] == expected
 
 
 @pytest.mark.parametrize(

@@ -115,28 +115,33 @@ def recover(
         or status["fallback"] != {"provider": "openrouter", "model": DOTS}
     ):
         raise ValueError("Expected configured Gemini 3.8 Flash and free Dots fallback")
+    google_quota_route = (status.get("quota_fallback") or {}).get("model") == "gemma-4-31b-it"
     doc = checkpoint(roots, source)
     todo = [r["conversation_id"] for r in doc["results"] if r["status"] == "error"]
     tries = Counter()
     rate_probes = 0
     width = 1
-    day = datetime.now(UTC).date().isoformat()
     ledger.execute("CREATE TABLE IF NOT EXISTS usage(day TEXT PRIMARY KEY, spent INTEGER NOT NULL)")
-    ledger.execute("INSERT OR IGNORE INTO usage VALUES(?,0)", (day,))
     ledger.commit()
-    while todo and datetime.now(UTC).date().isoformat() == day:
+    while todo:
         left = remaining()
+        day = datetime.now(UTC).date().isoformat()
         # Reserve before any POST. An interruption leaves the worst-case debit in place.
         with ledger:
             ledger.execute("BEGIN IMMEDIATE")
+            ledger.execute("INSERT OR IGNORE INTO usage VALUES(?,0)", (day,))
             used = ledger.execute("SELECT spent FROM usage WHERE day=?", (day,)).fetchone()[0]
             capacity = min(len(todo), width, min(budget - used, left - reserve) // MAX_DOTS_PER_JOB)
-            if capacity <= 0:
+            google_only = capacity <= 0 and google_quota_route
+            if google_only:
+                # One conversation at a time on Google's separate tokens-per-minute quota.
+                capacity = 1
+            elif capacity <= 0:
                 print(
                     f"DEV stopped. OpenRouter remaining={left}, DEV remaining={budget - used}"
                 )
                 break
-            held = capacity * MAX_DOTS_PER_JOB
+            held = 0 if google_only else capacity * MAX_DOTS_PER_JOB
             ledger.execute("UPDATE usage SET spent=spent+? WHERE day=?", (held, day))
         chunk, todo = todo[:capacity], todo[capacity:]
         jobs = {}
@@ -149,14 +154,23 @@ def recover(
                 child = submission.post(
                     client,
                     f"/evaluation-jobs/{jid}/retry",
+                    params={"google_only": "true"} if google_only else {},
                     headers={"Idempotency-Key": "dev-recover-" + jid},
                 )
                 jid = child["job_id"]
             jobs[cid] = jid
         outcomes = wait_batch(client, jobs)
-        spent = sum(charged(client, row) for row in outcomes.values())
+        spent = 0 if google_only else sum(charged(client, row) for row in outcomes.values())
         with ledger:
             ledger.execute("UPDATE usage SET spent=spent+? WHERE day=?", (spent - held, day))
+            finished_day = datetime.now(UTC).date().isoformat()
+            if spent and finished_day != day:
+                # The provider may count a request on either side of UTC midnight.
+                ledger.execute(
+                    "INSERT INTO usage VALUES(?,?) "
+                    "ON CONFLICT(day) DO UPDATE SET spent=spent+excluded.spent",
+                    (finished_day, spent),
+                )
         for cid, item in outcomes.items():
             tries[cid] += 1
             if item["status"] != "completed" and tries[cid] < 2:

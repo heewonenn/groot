@@ -42,7 +42,7 @@ if (Test-Path -LiteralPath $profilePath) {
     $env:CQA_MODEL = $selection.model
 }
 $env:CQA_FALLBACK_PROVIDER = 'gemini'
-$env:CQA_FALLBACK_MODEL = 'gemma-3-27b-it'
+$env:CQA_FALLBACK_MODEL = 'gemma-4-31b-it'
 function Read-GoogleKeyDialog([string]$notice) {
     Add-Type -AssemblyName PresentationFramework
     [xml]$layout = @'

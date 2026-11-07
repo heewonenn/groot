@@ -97,8 +97,13 @@ class JobRunner:
         settings: dict,
         key: str,
         parent: str | None = None,
+        *,
+        google_only: bool = False,
     ) -> dict:
-        digest = sha256(_json([group, ids, version, settings, parent]).encode()).hexdigest()
+        request = [group, ids, version, settings, parent]
+        if google_only:
+            request.append({"google_only": True})
+        digest = sha256(_json(request).encode()).hexdigest()
         with closing(connect()) as db:
             previous = _same_key(db, key, digest)
         if previous:
@@ -136,8 +141,11 @@ class JobRunner:
                 "INSERT INTO cqa_batch_items(job_id,conversation_id,status) VALUES (?,?,'queued')",
                 [(job_id, cid) for cid in ids],
             )
+        # A transport restriction applies to this attempt. The saved model and rules stay
+        # bound to the root job, and the evaluator audits the restriction with its attempts.
+        run_settings = {**settings, "google_only": True} if google_only else settings
         for cid in ids:
-            self.pool.submit(self._run, job_id, group, cid, version, settings)
+            self.pool.submit(self._run, job_id, group, cid, version, run_settings)
         return {"job_id": job_id}
 
     def _run(self, job_id: str, group: str, cid: str, version: str, settings: dict) -> None:
@@ -173,7 +181,7 @@ class JobRunner:
                 (status, evaluation_id, saved, error, _now(), job_id, cid),
             )
 
-    def retry(self, parent: str, key: str) -> dict:
+    def retry(self, parent: str, key: str, *, google_only: bool = False) -> dict:
         with closing(connect()) as db:
             job = _job(db, parent)
             items = db.execute(
@@ -193,6 +201,7 @@ class JobRunner:
             json.loads(job["settings"]),
             key,
             parent,
+            google_only=google_only,
         )
 
 

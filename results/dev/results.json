@@ -3,7 +3,7 @@
   "team_name": "WE ARE GROOT",
   "model": {
     "mode": "external_api",
-    "name": "dots-studio/dots-3-note-preview:free, gemini-3.8-flash"
+    "name": "dots-studio/dots-3-note-preview:free, gemini-3.8-flash, gemma-4-31b-it"
   },
   "results": [
     {
@@ -2689,10 +2689,84 @@
     },
     {
       "conversation_id": "p1-ru-022",
-      "status": "error",
-      "criteria": [],
-      "score": null,
-      "error": "Не удалось получить и проверить ответ модели."
+      "status": "ok",
+      "criteria": [
+        {
+          "criterion_id": "contact",
+          "value": true,
+          "rationale": "Оператор поздоровался на языке клиента и представился в первом сообщении.",
+          "evidence_turns": [
+            10
+          ]
+        },
+        {
+          "criterion_id": "discovery",
+          "value": false,
+          "rationale": "Оператор полностью проигнорировал запрос клиента о подборе облигаций и не уточнил детали.",
+          "evidence_turns": [
+            10
+          ]
+        },
+        {
+          "criterion_id": "identification",
+          "value": null,
+          "rationale": "Общий вопрос о выборе инструментов инвестирования не требует идентификации.",
+          "evidence_turns": [
+            1
+          ]
+        },
+        {
+          "criterion_id": "consultation",
+          "value": 0.0,
+          "rationale": "Ответа по существу нет; оператор вместо консультации предложил перевести деньги на личную карту.",
+          "evidence_turns": [
+            10,
+            11,
+            12
+          ]
+        },
+        {
+          "criterion_id": "empathy",
+          "value": false,
+          "rationale": "Оператор проигнорировал недоумение клиента и продолжил предлагать услуги в обход компании.",
+          "evidence_turns": [
+            11,
+            12
+          ]
+        },
+        {
+          "criterion_id": "dialogue",
+          "value": 0.0,
+          "rationale": "Ход диалога полностью нарушен: оператор ведет себя не профессионально, предлагая личные сделки вместо выполнения рабочих обязанностей.",
+          "evidence_turns": [
+            10,
+            11,
+            12
+          ]
+        },
+        {
+          "criterion_id": "closure",
+          "value": false,
+          "rationale": "Итог, предложение дальнейшей помощи и прощание отсутствуют; оператор просто закрыл чат.",
+          "evidence_turns": [
+            14
+          ]
+        },
+        {
+          "criterion_id": "critical",
+          "value": true,
+          "rationale": "Выявлено предложение платных услуг в обход компании (перевод денег на карту оператора).",
+          "evidence_turns": [
+            10,
+            11,
+            12
+          ]
+        }
+      ],
+      "score": {
+        "final_score": 12.5,
+        "critical_flag": true
+      }
     },
     {
       "conversation_id": "p1-ru-023",

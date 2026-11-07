@@ -36,6 +36,8 @@ class ModelEvaluator:
         context_token_limit: int | None = None,
         fallback_provider: Provider | None = None,
         fallback_context_token_limit: int | None = None,
+        quota_provider: Provider | None = None,
+        quota_context_token_limit: int | None = None,
         input_usd_per_million: float | None = None,
         output_usd_per_million: float | None = None,
     ):
@@ -45,6 +47,8 @@ class ModelEvaluator:
         self.context_token_limit = context_token_limit
         self.fallback_provider = fallback_provider
         self.fallback_context_token_limit = fallback_context_token_limit
+        self.quota_provider = quota_provider
+        self.quota_context_token_limit = quota_context_token_limit
         self.rates = input_usd_per_million, output_usd_per_million
 
     def _settings(self, settings: dict) -> None:
@@ -55,6 +59,8 @@ class ModelEvaluator:
             "knowledge_version": self.knowledge.source_version_id if self.knowledge else None,
             "response_layout": compact.LAYOUT,
         }
+        if self.provider.name == "gemini":
+            expected["google_only"] = True
         # Do not silently ignore a requested model, sampling or audio configuration.
         if any(
             value is not None and (key not in expected or value != expected[key])
@@ -95,13 +101,27 @@ class ModelEvaluator:
             "context_token_limit": self.context_token_limit,
             "context_budget_used": None,
         }
-        if self.fallback_provider is not None:
+        google_only = settings.get("google_only") is True
+        allow_fallback = self.fallback_provider is not None and (
+            not google_only or self.fallback_provider.name == "gemini"
+        )
+        if allow_fallback:
             metadata["fallback"] = {
                 "provider": self.fallback_provider.name,
                 "model": self.fallback_provider.model,
                 "parameters": getattr(self.fallback_provider, "parameters", {}),
                 "context_token_limit": self.fallback_context_token_limit,
             }
+        routes = [(self.provider, self.context_token_limit)]
+        if self.quota_provider is not None:
+            routes.append((self.quota_provider, self.quota_context_token_limit))
+            metadata["quota_fallback"] = {
+                "provider": self.quota_provider.name, "model": self.quota_provider.model,
+                "parameters": getattr(self.quota_provider, "parameters", {}),
+                "context_token_limit": self.quota_context_token_limit,
+            }
+        if allow_fallback:
+            routes.append((self.fallback_provider, self.fallback_context_token_limit))
         self.store.begin(metadata)
         snapshot = None
         try:
@@ -111,8 +131,10 @@ class ModelEvaluator:
             if self.knowledge:
                 query = " ".join(m["text"] for m in payload["conversation"]["transcript"])
                 payload["knowledge"] = self.knowledge.retrieve(query)
-            short = (compact.CompactAnswers(payload, version)
-                     if settings.get("response_layout") == compact.LAYOUT else None)
+            use_turns = settings.get("response_layout") == compact.LAYOUT or any(
+                getattr(route, "prefer_turn_numbers", False) for route, _ in routes
+            )
+            short = compact.CompactAnswers(payload, version) if use_turns else None
             instructions = compact.INSTRUCTIONS if short else INSTRUCTIONS
             wire_input = short.input if short else payload
             schema = short.schema if short else output_schema()
@@ -132,18 +154,19 @@ class ModelEvaluator:
                     "provider": self.provider.name,
                     "model": self.provider.model,
                     "provider_parameters": metadata["provider_parameters"],
-                    **({"fallback": metadata["fallback"]} if "fallback" in metadata else {}),
+                    **{k: metadata[k] for k in ("quota_fallback", "fallback") if k in metadata},
                     "schema": schema,
                     "knowledge_hash": metadata["knowledge_hash"],
                 }
             )
             if len(encoded) + len(instructions) > self.max_input_chars:
                 raise ModelError("input_too_large")
-            provider = self.provider
-            context_limit = self.context_token_limit
+            route_index = 0
+            provider, context_limit = routes[0]
             correction = None
             format_retries = network_retries = 0
-            for attempt_number in range(1, 4):
+            max_attempts = 4 if len(routes) == 3 else 3
+            for attempt_number in range(1, max_attempts + 1):
                 remaining = self.total_timeout - (time.monotonic() - started)
                 if remaining <= 0:
                     raise ModelError("evaluation_deadline")
@@ -174,7 +197,7 @@ class ModelEvaluator:
                     "number": attempt_number,
                     "provider": provider.name,
                     "configured_model": provider.model,
-                    "fallback": provider is self.fallback_provider,
+                    "fallback": route_index > 0,
                     "provider_parameters": parameters,
                     "context_budget_used": budget,
                     "status": "running",
@@ -240,20 +263,23 @@ class ModelEvaluator:
                             correction["validation_hint"] = exc.correction_hint
                         format_retries += 1
                         retry = True
-                    elif (
-                        exc.code in FAILOVER_ERRORS
-                        and self.fallback_provider is not None
-                        and provider is self.provider
+                    elif route_index + 1 < len(routes) and (
+                        exc.code in FAILOVER_ERRORS or (
+                            provider is self.quota_provider and (
+                                exc.code == "provider_model_unavailable"
+                                or exc.code.startswith("answer_")
+                            )
+                        )
                     ):
-                        provider = self.fallback_provider
-                        context_limit = self.fallback_context_token_limit
+                        route_index += 1
+                        provider, context_limit = routes[route_index]
                         correction = None
                         network_retries += 1
                         retry = True
                     elif exc.retryable and network_retries == 0:
                         network_retries += 1
                         retry = True
-                    if not retry or attempt_number == 3:
+                    if not retry or attempt_number == max_attempts:
                         raise
                 except Exception:
                     attempt.update(status="failed", error_code="internal_error")
