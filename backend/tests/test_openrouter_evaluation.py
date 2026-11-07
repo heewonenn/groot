@@ -8,6 +8,7 @@ import pytest
 from backend.app.evaluation.contract import INSTRUCTIONS, output_schema
 from backend.app.evaluation.openrouter import OpenRouterChat
 from backend.app.evaluation.provider import ModelError
+from backend.tests.test_model_evaluation import example
 
 MODEL = "testing/fixture-1:free"
 UNRESOLVED = "private upstream body"
@@ -39,6 +40,42 @@ def run(handler):
     provider = OpenRouterChat(MODEL, "synthetic-token", transport=httpx.MockTransport(handler))
     assert "synthetic-token" not in repr(provider)
     return provider.generate(INSTRUCTIONS, '{"language":"KZ"}', output_schema(), 2)
+
+
+def test_json_object_route_includes_schema_and_preserves_private_routing():
+    def handler(request):
+        body = json.loads(request.content)
+        assert body["response_format"] == {"type": "json_object"}
+        assert json.loads(body["messages"][1]["content"])["response_schema"] == output_schema()
+        assert body["provider"] == {"require_parameters": True, "data_collection": "deny"}
+        return httpx.Response(404, json={"error": {"message": "No endpoints for your data policy"}})
+
+    route = OpenRouterChat(
+        MODEL, "fixture", transport=httpx.MockTransport(handler), json_object=True,
+    )
+    with pytest.raises(ModelError, match="^provider_no_private_route$"):
+        route.generate(INSTRUCTIONS, "{}", output_schema(), 1)
+
+
+def test_evidence_schema_uses_the_current_source_even_for_corrections():
+    conversation = example("conversation.synthetic.json")
+    canonical_schema = output_schema()
+
+    def handler(request):
+        body = json.loads(request.content)
+        schema = body["response_format"]["json_schema"]["schema"]
+        fields = schema["$defs"]["evidence"]["properties"]
+        assert fields["group_id"]["enum"] == [conversation["group_id"]]
+        assert fields["conversation_id"]["enum"] == [conversation["conversation_id"]]
+        expected = [m["message_id"] for m in conversation["transcript"]]
+        assert schema["$defs"]["source_message_id"]["enum"] == expected
+        assert fields["message_id"] == fields["span"]["anyOf"][0]["properties"]["end_message_id"]
+        return httpx.Response(200, json=envelope())
+
+    route = OpenRouterChat(MODEL, "test", transport=httpx.MockTransport(handler))
+    payload = {"evaluation_input": {"conversation": conversation}, "correction": {}}
+    route.generate(INSTRUCTIONS, json.dumps(payload), canonical_schema, 2)
+    assert "source_message_id" not in canonical_schema["$defs"]
 
 
 def test_strict_json_and_no_training_route_with_actual_resolved_model_and_usage():

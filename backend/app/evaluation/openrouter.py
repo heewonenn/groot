@@ -3,6 +3,7 @@
 import json
 import re
 import time
+from copy import deepcopy
 from dataclasses import dataclass, field
 
 import httpx
@@ -11,6 +12,38 @@ from backend.app.evaluation.provider import ModelError, Reply, token_usage
 
 CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL_SLUG = r"[A-Za-z0-9][A-Za-z0-9._-]{0,95}/[A-Za-z0-9][A-Za-z0-9._-]{0,159}"
+
+
+def _ground_evidence(schema: dict, payload: str) -> dict:
+    """Constrain generated evidence IDs to the source conversation, including on correction."""
+    if "evidence" not in schema.get("$defs", {}):
+        return schema
+    request = json.loads(payload)
+    conversation = request.get("evaluation_input", request).get("conversation")
+    if not conversation:
+        return schema
+    grounded = deepcopy(schema)
+    answer = grounded["$defs"]["criterion_answer"]["properties"]
+    answer["value"] = {
+        "anyOf": [{"type": "boolean"}, {"type": "number"}, {"type": "null"}],
+        "description": (
+            "Applicable requires a non-null value. Boolean and flag require true or false, "
+            "including false for no violation. Scale requires one numeric level.value from "
+            "the saved criterion (not normalized_value). Null only for N/A or unresolved."
+        ),
+    }
+    fields = grounded["$defs"]["evidence"]["properties"]
+    for field_name in ("group_id", "conversation_id"):
+        fields[field_name]["enum"] = [conversation[field_name]]
+    identifiers = [m["message_id"] for m in conversation["transcript"]]
+    # The evaluator reserves 4096 bytes for the request wrapper. Avoid unbounded schema growth.
+    if len(json.dumps(identifiers).encode()) <= 2500:
+        grounded["$defs"]["source_message_id"] = {"type": "string", "enum": identifiers}
+        reference = {"$ref": "#/$defs/source_message_id"}
+        fields["message_id"] = reference
+        span = fields["span"]["anyOf"][0]["properties"]
+        span["start_message_id"] = span["end_message_id"] = reference
+    return grounded
 
 
 def _status_error(status: int, usage: dict | None = None) -> ModelError:
@@ -47,6 +80,8 @@ class OpenRouterChat:
     api_key: str = field(repr=False)
     max_output_tokens: int = 12000
     transport: httpx.BaseTransport | None = field(default=None, repr=False)
+    json_object: bool = False
+    low_reasoning: bool = False
     name: str = field(default="openrouter", init=False)
     live: bool = field(default=True, init=False)
 
@@ -62,10 +97,21 @@ class OpenRouterChat:
             "max_output_tokens": self.max_output_tokens,
             "require_parameters": True,
             "data_collection": "deny",
+            **({"format": "json_object"} if self.json_object else {}),
+            **({"reasoning_effort": "low"} if self.low_reasoning else {}),
         }
 
     def generate(self, instructions: str, payload: str, schema: dict, timeout: float) -> Reply:
         started = time.monotonic()
+        schema = _ground_evidence(schema, payload)
+        response_format = {"type": "json_schema", "json_schema": {
+            "name": "cqa_answers", "strict": True, "schema": schema,
+        }}
+        if self.json_object:
+            instructions += "\nReturn one JSON object matching response_schema. Copy IDs exactly."
+            payload = json.dumps({"response_schema": schema, "input": json.loads(payload)},
+                                 ensure_ascii=False)
+            response_format = {"type": "json_object"}
         body = {
             "model": self.model,
             "messages": [
@@ -74,11 +120,10 @@ class OpenRouterChat:
             ],
             "max_tokens": self.max_output_tokens,
             "provider": {"require_parameters": True, "data_collection": "deny"},
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": {"name": "cqa_answers", "strict": True, "schema": schema},
-            },
+            "response_format": response_format,
         }
+        if self.low_reasoning:
+            body["reasoning"] = {"effort": "low"}
         try:
             with (
                 httpx.Client(
@@ -88,6 +133,12 @@ class OpenRouterChat:
                     "POST", CHAT_URL, headers={"Authorization": f"Bearer {self.api_key}"}, json=body
                 ) as response,
             ):
+                if response.status_code == 404:
+                    # Upstream messages may echo user input. Retain only a known category.
+                    raw_error = next(response.iter_bytes(chunk_size=16384), b"").lower()
+                    if b"data policy" in raw_error or b"privacy" in raw_error:
+                        raise ModelError("provider_no_private_route")
+                    raise ModelError("provider_no_route")
                 if response.status_code != 200:
                     raise _status_error(response.status_code)
                 raw = bytearray()

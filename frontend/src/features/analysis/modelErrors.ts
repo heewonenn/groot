@@ -28,6 +28,8 @@ const messages: Record<string, string> = {
   provider_rate_limit: 'Достигнут лимит запросов модели. Проверьте квоту сервиса и повторите оценку позже.',
   provider_timeout: 'Сервис модели не ответил за отведённое время.',
   provider_rejected: 'Сервис отклонил запрос. Проверьте совместимость выбранной модели.',
+  provider_no_private_route: 'OpenRouter не нашёл провайдера с выбранными условиями использования данных.',
+  provider_no_route: 'OpenRouter не нашёл провайдера для модели с такими параметрами.',
   provider_bad_request: 'Google отклонил запрос на оценку (HTTP 400).',
   provider_region_unavailable: 'Google сообщает, что генерация недоступна из региона запроса.',
   provider_precondition: 'Google отклонил генерацию из-за условий доступа проекта (FAILED_PRECONDITION).',

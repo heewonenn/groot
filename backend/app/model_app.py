@@ -3,6 +3,7 @@
 import math
 import os
 import sqlite3
+from copy import copy
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
@@ -13,6 +14,7 @@ from backend.app.evaluation.engine import ModelEvaluator
 from backend.app.evaluation.gemini import GEMINI_MODEL, GeminiGenerateContent
 from backend.app.evaluation.knowledge import Knowledge
 from backend.app.evaluation.openrouter import OpenRouterChat
+from backend.app.evaluation.openrouter_local import load_profile, profile_path
 from backend.app.evaluation.provider import OpenAIResponses, Provider
 from backend.app.evaluation.store import RunStore
 from backend.app.main import create_app
@@ -106,7 +108,9 @@ def configured_evaluator() -> tuple[ModelEvaluator | None, str | None]:
         return None, "model_configuration_invalid"
 
 
-def create_model_app(evaluator: ModelEvaluator | None, reason: str | None = None):
+def create_model_app(
+    evaluator: ModelEvaluator | None, reason: str | None = None, *, local_fallback: bool = False,
+):
     try:
         # A restart can disable the provider while an earlier audit is still running.
         # Recover local history independently of model readiness; never resume inference.
@@ -114,11 +118,30 @@ def create_model_app(evaluator: ModelEvaluator | None, reason: str | None = None
     except (sqlite3.Error, OSError):
         # Match the shared app: health remains available when storage is offline.
         pass
-    application = create_app(evaluator)
+    def for_next_job() -> ModelEvaluator | None:
+        if not local_fallback or evaluator is None:
+            return evaluator
+        try:
+            route, context = load_profile(profile_path(), evaluator.provider.max_output_tokens)
+        except (OSError, ValueError, KeyError, TypeError):
+            return evaluator
+        # Each running job keeps its own route if the operator connects or removes a profile.
+        selected = copy(evaluator)
+        selected.fallback_provider = route
+        selected.fallback_context_token_limit = context
+        return selected
+
+    def evaluate(eid: str, conversation: dict, rules: dict, settings: dict) -> dict:
+        selected = for_next_job()
+        assert selected is not None  # Registered only when the primary evaluator exists.
+        return selected(eid, conversation, rules, settings)
+
+    application = create_app(evaluate if evaluator is not None and local_fallback else evaluator)
     router = APIRouter(prefix="/api", tags=["model-audit"], route_class=DataRoute)
 
     @router.get("/model-status")
     def status() -> dict:
+        selected = for_next_job()
         return {
             "configured": evaluator is not None,
             "ready": evaluator is not None and application.state.jobs.available,
@@ -126,9 +149,9 @@ def create_model_app(evaluator: ModelEvaluator | None, reason: str | None = None
             "provider": evaluator.provider.name if evaluator else None,
             "model": evaluator.provider.model if evaluator else None,
             "fallback": (
-                {"provider": evaluator.fallback_provider.name,
-                 "model": evaluator.fallback_provider.model}
-                if evaluator and evaluator.fallback_provider else None
+                {"provider": selected.fallback_provider.name,
+                 "model": selected.fallback_provider.model}
+                if selected and selected.fallback_provider else None
             ),
             "prompt_version": PROMPT_VERSION,
             "audio_analysed": False,
@@ -170,4 +193,9 @@ def create_model_app(evaluator: ModelEvaluator | None, reason: str | None = None
 
 def create_configured_app():
     evaluator, reason = configured_evaluator()
-    return create_model_app(evaluator, reason)
+    reserve = os.getenv("CQA_FALLBACK_PROVIDER", "").strip()
+    # An explicitly configured environment route takes precedence over desktop setup.
+    local = evaluator is not None and evaluator.provider.name == "gemini" and (
+        not reserve or (reserve == "gemini" and os.getenv("CQA_GOOGLE_CATALOG_RESOLVED") == "1")
+    )
+    return create_model_app(evaluator, reason, local_fallback=local)

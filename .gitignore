@@ -19,6 +19,7 @@ models/*
 !models/.gitkeep
 *.pem
 *.key
+openrouter-fallback*.dpapi
 .playwright-mcp/
 # Local workstation audit artifacts; keep the readable report in docs/READINESS.md.
 docs/codex-audit.json
