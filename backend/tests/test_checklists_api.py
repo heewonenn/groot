@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -116,3 +117,71 @@ def test_storage_failure_is_sanitized(client):
     assert result.status_code == 503
     assert result.json()["error"]["code"] == "storage_unavailable"
     assert "private path" not in result.text
+
+
+@pytest.mark.parametrize("ratio", ["0.0000001", "0.0000000000000000000000000001"])
+def test_small_scale_ratios_keep_the_published_decimal_contract(client, ratio):
+    from jsonschema import Draft202012Validator
+
+    http, repository = client
+    validator = Draft202012Validator(json.loads(
+        (ROOT / "docs/contracts/cqa-team-v1.schema.json").read_text(encoding="utf-8")
+    ))
+    draft = http.get("/api/checklists/freedom-chat/draft").json()
+    draft["content"]["criteria"][3]["levels"][1]["normalized_value"] = ratio
+    saved = http.patch("/api/checklists/freedom-chat/draft", json={
+        "expected_revision": draft["revision"], "content": draft["content"],
+    })
+    assert saved.status_code == 200
+    assert saved.json()["content"]["criteria"][3]["levels"][1]["normalized_value"] == ratio
+    published = http.post("/api/checklists/freedom-chat/versions", json={
+        "expected_revision": saved.json()["revision"],
+    })
+    assert published.status_code == 200
+    version_id = published.json()["checklist_version_id"]
+    versions = [
+        published.json(),
+        http.get(f"/api/checklist-versions/{version_id}").json(),
+        http.get("/api/checklists/freedom-chat/versions").json()[0],
+    ]
+    reopened = ChecklistRepository(repository.path).get_version(version_id)
+    assert reopened.criteria[3].levels[1].normalized_value == Decimal(ratio)
+    versions.append(json.loads(reopened.model_dump_json()))
+    for version in versions:
+        validator.validate(version)
+        assert version["criteria"][3]["levels"][1]["normalized_value"] == ratio
+    original = http.get("/api/checklist-versions/freedom-chat@1").json()
+    assert original["criteria"][3]["levels"][1]["normalized_value"] == "0.25"
+
+
+def test_draft_read_stays_consistent_when_another_connection_publishes(client, monkeypatch):
+    http, reader = client
+    connection = sqlite3.connect(reader.path)
+    try:
+        # Let the writer commit while the reader's snapshot is still open.
+        assert connection.execute("PRAGMA journal_mode=WAL").fetchone()[0] == "wal"
+    finally:
+        connection.close()
+    writer = ChecklistRepository(reader.path)
+    before = http.get("/api/checklists/freedom-chat/draft").json()
+    changed = writer.get_draft("freedom-chat").content
+    changed.criteria[0].instruction = "Новое правило, опубликованное во время чтения."
+    original_record = reader._record
+    published = []
+
+    def publish_after_first_read(connection, checklist_id):
+        row = original_record(connection, checklist_id)
+        saved = writer.update_draft(checklist_id, before["revision"], changed)
+        published.append(writer.publish(checklist_id, saved.revision))
+        return row
+
+    with monkeypatch.context() as patch:
+        patch.setattr(reader, "_record", publish_after_first_read)
+        observed = http.get("/api/checklists/freedom-chat/draft")
+    assert observed.status_code == 200
+    assert published[0].checklist_version_id == "freedom-chat@2"
+    assert observed.json() == before
+    after = http.get("/api/checklists/freedom-chat/draft").json()
+    assert after["base_version_id"] == "freedom-chat@2"
+    assert after["revision"] == before["revision"] + 2
+    assert after["content"]["criteria"][0]["instruction"] == changed.criteria[0].instruction

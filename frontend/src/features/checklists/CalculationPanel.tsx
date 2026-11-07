@@ -4,6 +4,7 @@ import { checklistsApi, errorMessage } from './api'
 import type { Answers, CalculatedResult, ChecklistVersion } from './types'
 
 const sample: Answers = { '01': true, '02': null, '03': null, '04': 15, '05': true, '06': 7, '07': true, '08': false }
+const reviewSample: Answers = { ...sample, '04': 20 }
 const decimal = (value: string | null) => value === null ? '—' : Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 2, minimumFractionDigits: 2 })
 
 export default function CalculationPanel({ version }: { version: ChecklistVersion }) {
@@ -14,10 +15,12 @@ export default function CalculationPanel({ version }: { version: ChecklistVersio
   const baseline = version.criteria.length === 8 && version.criteria.every((c, i) => {
     const expectedWeights = [10, 15, 20, 20, 15, 15, 5, 0]
     if (c.id !== String(i + 1).padStart(2, '0') || c.weight !== expectedWeights[i]) return false
-    const value = sample[c.id]
-    if (value === null) return c.allow_na
-    if (typeof value === 'number') return c.answer_type === 'scale' && c.levels.some(level => level.value === value && Number(level.normalized_value) === value / (c.id === '04' ? 20 : 10))
-    return c.answer_type === (c.id === '08' ? 'flag' : 'boolean')
+    return [sample, reviewSample].every(answers => {
+      const value = answers[c.id]
+      if (value === null) return c.allow_na
+      if (typeof value === 'number') return c.answer_type === 'scale' && c.levels.some(level => level.value === value && Number(level.normalized_value) === value / (c.id === '04' ? 20 : 10))
+      return c.answer_type === (c.id === '08' ? 'flag' : 'boolean')
+    })
   })
   async function run(next = values) {
     setBusy(true); setError(''); setResult(null); setValues(next)
@@ -27,7 +30,7 @@ export default function CalculationPanel({ version }: { version: ChecklistVersio
   }
   return <section className="cq-calculator" aria-label="Проверка расчёта">
     <div className="cq-section-intro"><div><h2>Проверка расчёта</h2><p>Ручные ответы по сохранённой версии {version.version}. AI не вызывается.</p></div><Calculator size={24} aria-hidden="true" /></div>
-    {baseline && <div className="cq-example-bar"><span>Арифметический пример, не оценка диалога</span><button className="cq-button cq-button-secondary" disabled={busy} onClick={() => void run({ ...sample })}>Пример 85,38</button><button className="cq-button cq-button-secondary" disabled={busy} onClick={() => void run({ ...sample, '04': 20 })}>После пересмотра 93,08</button></div>}
+    {baseline && <div className="cq-example-bar"><span>Арифметический пример, не оценка диалога</span><button className="cq-button cq-button-secondary" disabled={busy} onClick={() => void run({ ...sample })}>Пример 85,38</button><button className="cq-button cq-button-secondary" disabled={busy} onClick={() => void run({ ...reviewSample })}>После пересмотра 93,08</button></div>}
     <fieldset disabled={busy} className="cq-answer-grid"><legend className="cq-sr-only">Ответы по критериям</legend>
       {version.criteria.map(c => <label className="cq-answer-row" key={c.id}><span><small>Критерий {c.id}</small><strong>{c.title}</strong></span><select aria-label={`Ответ по критерию ${c.id}`} value={values[c.id] === null ? 'na' : String(values[c.id])} onChange={event => {
         const raw = event.target.value

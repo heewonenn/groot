@@ -96,3 +96,38 @@ test('loading error recovers without substituting demo rules', async ({ page }) 
   await page.getByRole('button', { name: 'Повторить загрузку', exact: true }).click()
   await expect(page.getByLabel('Правило критерия 01')).toBeVisible()
 })
+
+for (const scenario of [
+  { name: 'review value is absent', middle: [] },
+  { name: 'review value has a different contribution', middle: [{ value: 20, description: 'Частичный ответ', normalized_value: '0.8' }] },
+]) {
+  test(`demo buttons require both answer sets: ${scenario.name}`, async ({ page }) => {
+    const created = await page.request.post('/api/checklists', {
+      data: { title: `Изменённая шкала: ${scenario.name}`, copy_from_version_id: 'freedom-chat@1' },
+    })
+    expect(created.status()).toBe(201)
+    const draft = await created.json()
+    draft.content.criteria[3].levels = [
+      { value: 0, description: 'Нет ответа', normalized_value: '0' },
+      { value: 15, description: 'Основная часть ответа', normalized_value: '0.75' },
+      ...scenario.middle,
+      { value: 30, description: 'Полный ответ', normalized_value: '1' },
+    ]
+    const saved = await page.request.patch(`/api/checklists/${draft.checklist_id}/draft`, {
+      data: { expected_revision: draft.revision, content: draft.content },
+    })
+    expect(saved.ok()).toBe(true)
+    const published = await page.request.post(`/api/checklists/${draft.checklist_id}/versions`, {
+      data: { expected_revision: (await saved.json()).revision },
+    })
+    expect(published.ok()).toBe(true)
+    await page.goto(`/checklists?checklist=${draft.checklist_id}`)
+    await page.getByRole('button', { name: 'Проверка расчёта', exact: true }).click()
+    await expect(page.getByLabel('Ответ по критерию 04')).toHaveValue('30')
+    await expect(page.getByRole('button', { name: 'После пересмотра 93,08', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Пример 85,38', exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Рассчитать итог', exact: true }).click()
+    await expect(page.getByTestId('calculation-total')).toHaveText('100,00 / 100')
+    await expect(page.getByRole('alert')).toHaveCount(0)
+  })
+}
