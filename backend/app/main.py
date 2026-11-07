@@ -11,7 +11,10 @@ from pydantic import BaseModel
 from backend.app.api.audio import router as audio_router
 from backend.app.api.checklists import router as checklists_router
 from backend.app.api.evaluation_jobs import router as jobs_router
+from backend.app.api.participant3 import router as participant3_router
+from backend.app.api.submission_downloads import router as submission_router
 from backend.app.services.evaluation_jobs import Evaluator, JobRunner
+from backend.app.services.participant3 import initialize as initialize_reviews
 from backend.app.team_data import router as team_data_router
 
 
@@ -41,6 +44,7 @@ def create_app(evaluator: Evaluator | None = None) -> FastAPI:
         application.state.jobs = runner
         try:
             runner.start()
+            initialize_reviews()
         except (sqlite3.Error, OSError):
             # Keep the health route and unrelated screens available when storage is offline.
             # A later restart recovers persisted work once the database is accessible.
@@ -51,7 +55,10 @@ def create_app(evaluator: Evaluator | None = None) -> FastAPI:
             runner.stop()
 
     application = FastAPI(title=os.getenv("APP_NAME", "Hackathon AI"), lifespan=lifespan)
-    for router in (checklists_router, team_data_router, audio_router, jobs_router):
+    for router in (
+        checklists_router, team_data_router, audio_router, jobs_router,
+        participant3_router, submission_router,
+    ):
         application.include_router(router)
     application.get("/api/health", response_model=HealthResponse)(health)
     application.get("/api/capabilities", response_model=Capabilities)(capabilities)

@@ -17,6 +17,11 @@ See [the participant 4 handoff](docs/PARTICIPANT_4_HANDOFF.md) for integration a
 Official submissions for team **WE ARE GROOT** are generated in `results/dev/` and
 `results/prod/`. See [the submission commands and pre-push checks](results/README.md).
 
+Participant 3 adds the [quality workspace](http://127.0.0.1:5173/analysis),
+evidence navigation, persistent appeals and original/final score history.
+Start with the [Windows launch and participant 3 guide](docs/PARTICIPANT_3_GUIDE.md).
+The optional synthetic demo is enabled explicitly; it is not a model evaluation.
+
 Team handoff: [four-participant implementation plan](docs/TEAM_IMPLEMENTATION_PLAN.md) and [shared data contracts and fixtures](docs/contracts/README.md). DEV examples under `data/examples/team-zip-v1` are local and ignored by Git; public examples are synthetic and are not model-quality labels.
 
 Participant 1 is implemented: checklist editor, immutable versions, SQLite persistence
@@ -162,8 +167,8 @@ Do not transfer credential files to teammates. See the readiness report for test
 - `notebooks`: exploration; `data` and `models`: ignored local artifacts.
 - `docs`: audit evidence and decisions; `scripts`: setup and verification.
 - Use `main` and focused `codex/<topic>` branches. Create the first commit before worktrees.
-- An `origin` remote is configured; the local repository still has no commits.
-  Team synchronization is unverified. Ask before publishing or pushing.
+- Team changes are reviewed locally before synchronization. Publishing or pushing
+  requires the user's authorization; this participant 3 delivery has not been pushed.
 - Use `.env.example` as a template. Set `APP_NAME` in the process environment if needed;
   the backend does not automatically load `.env`. `CQA_SOURCE_URL` configures the
   organizer import; a private `data/team-api/source_url.txt` is the fallback.

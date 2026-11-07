@@ -87,7 +87,27 @@ test('synthetic recording seeks to an explicit verified anchor and handles missi
       { message_id: previous.message_id, start_seconds: 5.1, end_seconds: 6.2 },
     ],
   } }))
-  await page.route(path + '/call-1/audio', route => route.fulfill({ contentType: 'audio/wav', body: silence() }))
+  await page.route(path + '/call-1/audio', route => {
+    const recording = silence()
+    const match = route.request().headers().range?.match(/^bytes=(\d+)-(\d*)$/)
+    // Match the real audio proxy: Chromium cannot seek in a stream that ignores Range.
+    if (match) {
+      const start = Number(match[1])
+      const end = match[2] ? Math.min(Number(match[2]), recording.length - 1) : recording.length - 1
+      if (start > end || start >= recording.length) {
+        return route.fulfill({ status: 416, headers: { 'Content-Range': `bytes */${recording.length}` } })
+      }
+      const body = recording.subarray(start, end + 1)
+      return route.fulfill({
+        status: 206, contentType: 'audio/wav', body,
+        headers: { 'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${start}-${end}/${recording.length}`, 'Content-Length': String(body.length) },
+      })
+    }
+    return route.fulfill({
+      contentType: 'audio/wav', body: recording,
+      headers: { 'Accept-Ranges': 'bytes', 'Content-Length': String(recording.length) },
+    })
+  })
   await page.goto('/conversations?group_id=PLAYER&conversation_id=call-1&message_id=call-1%3Am0002&channel=voice+call&language=RU')
   await expect(page.locator('li.cv-turn[aria-current="true"]')).toContainText(previous.text)
   const first = page.getByRole('button', { name: /Перейти к фрагменту .*m0001/ })

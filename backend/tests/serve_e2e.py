@@ -31,6 +31,10 @@ def main() -> None:
             }
         )
         store_group(conversation["group_id"], [source])
+        if os.getenv("CQA_E2E_PARTICIPANT3") == "1":
+            from backend.app.participant3_demo import seed
+
+            seed()
         uvicorn.run(app, host="127.0.0.1", port=8765)
 
 
