@@ -1,0 +1,708 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Synthetic arithmetic vectors, not DEV ground truth",
+  "cases": [
+    {
+      "id": "scale_7_of_10",
+      "template_checklist_version_id": "freedom-chat@1",
+      "test_only_criterion_subset": [
+        "06"
+      ],
+      "answers": {
+        "06": 7
+      },
+      "expected": {
+        "criteria": [
+          {
+            "criterion_id": "06",
+            "raw_value": 7,
+            "applicability": "applicable",
+            "weight": 15,
+            "normalized_value": "0.7",
+            "earned_points": "10.50",
+            "effective_weight": "100.0000",
+            "weighted_contribution": "70.0000"
+          }
+        ],
+        "sections": [
+          {
+            "section_id": "opening",
+            "applicable_weight": "0.00",
+            "weighted_contribution": "0.0000",
+            "local_percent": null
+          },
+          {
+            "section_id": "solution",
+            "applicable_weight": "0.00",
+            "weighted_contribution": "0.0000",
+            "local_percent": null
+          },
+          {
+            "section_id": "communication",
+            "applicable_weight": "15.00",
+            "weighted_contribution": "70.0000",
+            "local_percent": "70.00"
+          },
+          {
+            "section_id": "critical",
+            "applicable_weight": "0.00",
+            "weighted_contribution": "0.0000",
+            "local_percent": null
+          }
+        ],
+        "applicable_weight": "15.00",
+        "earned_points": "10.50",
+        "total": "70.00",
+        "gross_error": false
+      }
+    },
+    {
+      "id": "initial_85_38",
+      "template_checklist_version_id": "freedom-chat@1",
+      "test_only_criterion_subset": null,
+      "answers": {
+        "01": true,
+        "02": null,
+        "03": null,
+        "04": 15,
+        "05": true,
+        "06": 7,
+        "07": true,
+        "08": false
+      },
+      "expected": {
+        "criteria": [
+          {
+            "criterion_id": "01",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 10,
+            "normalized_value": "1",
+            "earned_points": "10.00",
+            "effective_weight": "15.3846",
+            "weighted_contribution": "15.3846"
+          },
+          {
+            "criterion_id": "02",
+            "raw_value": null,
+            "applicability": "not_applicable",
+            "weight": 15,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          },
+          {
+            "criterion_id": "03",
+            "raw_value": null,
+            "applicability": "not_applicable",
+            "weight": 20,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          },
+          {
+            "criterion_id": "04",
+            "raw_value": 15,
+            "applicability": "applicable",
+            "weight": 20,
+            "normalized_value": "0.75",
+            "earned_points": "15.00",
+            "effective_weight": "30.7692",
+            "weighted_contribution": "23.0769"
+          },
+          {
+            "criterion_id": "05",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 15,
+            "normalized_value": "1",
+            "earned_points": "15.00",
+            "effective_weight": "23.0769",
+            "weighted_contribution": "23.0769"
+          },
+          {
+            "criterion_id": "06",
+            "raw_value": 7,
+            "applicability": "applicable",
+            "weight": 15,
+            "normalized_value": "0.7",
+            "earned_points": "10.50",
+            "effective_weight": "23.0769",
+            "weighted_contribution": "16.1538"
+          },
+          {
+            "criterion_id": "07",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 5,
+            "normalized_value": "1",
+            "earned_points": "5.00",
+            "effective_weight": "7.6923",
+            "weighted_contribution": "7.6923"
+          },
+          {
+            "criterion_id": "08",
+            "raw_value": false,
+            "applicability": "applicable",
+            "weight": 0,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          }
+        ],
+        "sections": [
+          {
+            "section_id": "opening",
+            "applicable_weight": "10.00",
+            "weighted_contribution": "15.3846",
+            "local_percent": "100.00"
+          },
+          {
+            "section_id": "solution",
+            "applicable_weight": "20.00",
+            "weighted_contribution": "23.0769",
+            "local_percent": "75.00"
+          },
+          {
+            "section_id": "communication",
+            "applicable_weight": "35.00",
+            "weighted_contribution": "46.9231",
+            "local_percent": "87.14"
+          },
+          {
+            "section_id": "critical",
+            "applicable_weight": "0.00",
+            "weighted_contribution": "0.0000",
+            "local_percent": null
+          }
+        ],
+        "applicable_weight": "65.00",
+        "earned_points": "55.50",
+        "total": "85.38",
+        "gross_error": false
+      }
+    },
+    {
+      "id": "review_93_08",
+      "template_checklist_version_id": "freedom-chat@1",
+      "test_only_criterion_subset": null,
+      "answers": {
+        "01": true,
+        "02": null,
+        "03": null,
+        "04": 20,
+        "05": true,
+        "06": 7,
+        "07": true,
+        "08": false
+      },
+      "expected": {
+        "criteria": [
+          {
+            "criterion_id": "01",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 10,
+            "normalized_value": "1",
+            "earned_points": "10.00",
+            "effective_weight": "15.3846",
+            "weighted_contribution": "15.3846"
+          },
+          {
+            "criterion_id": "02",
+            "raw_value": null,
+            "applicability": "not_applicable",
+            "weight": 15,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          },
+          {
+            "criterion_id": "03",
+            "raw_value": null,
+            "applicability": "not_applicable",
+            "weight": 20,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          },
+          {
+            "criterion_id": "04",
+            "raw_value": 20,
+            "applicability": "applicable",
+            "weight": 20,
+            "normalized_value": "1",
+            "earned_points": "20.00",
+            "effective_weight": "30.7692",
+            "weighted_contribution": "30.7692"
+          },
+          {
+            "criterion_id": "05",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 15,
+            "normalized_value": "1",
+            "earned_points": "15.00",
+            "effective_weight": "23.0769",
+            "weighted_contribution": "23.0769"
+          },
+          {
+            "criterion_id": "06",
+            "raw_value": 7,
+            "applicability": "applicable",
+            "weight": 15,
+            "normalized_value": "0.7",
+            "earned_points": "10.50",
+            "effective_weight": "23.0769",
+            "weighted_contribution": "16.1538"
+          },
+          {
+            "criterion_id": "07",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 5,
+            "normalized_value": "1",
+            "earned_points": "5.00",
+            "effective_weight": "7.6923",
+            "weighted_contribution": "7.6923"
+          },
+          {
+            "criterion_id": "08",
+            "raw_value": false,
+            "applicability": "applicable",
+            "weight": 0,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          }
+        ],
+        "sections": [
+          {
+            "section_id": "opening",
+            "applicable_weight": "10.00",
+            "weighted_contribution": "15.3846",
+            "local_percent": "100.00"
+          },
+          {
+            "section_id": "solution",
+            "applicable_weight": "20.00",
+            "weighted_contribution": "30.7692",
+            "local_percent": "100.00"
+          },
+          {
+            "section_id": "communication",
+            "applicable_weight": "35.00",
+            "weighted_contribution": "46.9231",
+            "local_percent": "87.14"
+          },
+          {
+            "section_id": "critical",
+            "applicable_weight": "0.00",
+            "weighted_contribution": "0.0000",
+            "local_percent": null
+          }
+        ],
+        "applicable_weight": "65.00",
+        "earned_points": "60.50",
+        "total": "93.08",
+        "gross_error": false
+      }
+    },
+    {
+      "id": "na_to_yes_changes_denominator",
+      "template_checklist_version_id": "freedom-chat@1",
+      "test_only_criterion_subset": null,
+      "answers": {
+        "01": true,
+        "02": true,
+        "03": null,
+        "04": 15,
+        "05": true,
+        "06": 7,
+        "07": true,
+        "08": false
+      },
+      "expected": {
+        "criteria": [
+          {
+            "criterion_id": "01",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 10,
+            "normalized_value": "1",
+            "earned_points": "10.00",
+            "effective_weight": "12.5000",
+            "weighted_contribution": "12.5000"
+          },
+          {
+            "criterion_id": "02",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 15,
+            "normalized_value": "1",
+            "earned_points": "15.00",
+            "effective_weight": "18.7500",
+            "weighted_contribution": "18.7500"
+          },
+          {
+            "criterion_id": "03",
+            "raw_value": null,
+            "applicability": "not_applicable",
+            "weight": 20,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          },
+          {
+            "criterion_id": "04",
+            "raw_value": 15,
+            "applicability": "applicable",
+            "weight": 20,
+            "normalized_value": "0.75",
+            "earned_points": "15.00",
+            "effective_weight": "25.0000",
+            "weighted_contribution": "18.7500"
+          },
+          {
+            "criterion_id": "05",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 15,
+            "normalized_value": "1",
+            "earned_points": "15.00",
+            "effective_weight": "18.7500",
+            "weighted_contribution": "18.7500"
+          },
+          {
+            "criterion_id": "06",
+            "raw_value": 7,
+            "applicability": "applicable",
+            "weight": 15,
+            "normalized_value": "0.7",
+            "earned_points": "10.50",
+            "effective_weight": "18.7500",
+            "weighted_contribution": "13.1250"
+          },
+          {
+            "criterion_id": "07",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 5,
+            "normalized_value": "1",
+            "earned_points": "5.00",
+            "effective_weight": "6.2500",
+            "weighted_contribution": "6.2500"
+          },
+          {
+            "criterion_id": "08",
+            "raw_value": false,
+            "applicability": "applicable",
+            "weight": 0,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          }
+        ],
+        "sections": [
+          {
+            "section_id": "opening",
+            "applicable_weight": "25.00",
+            "weighted_contribution": "31.2500",
+            "local_percent": "100.00"
+          },
+          {
+            "section_id": "solution",
+            "applicable_weight": "20.00",
+            "weighted_contribution": "18.7500",
+            "local_percent": "75.00"
+          },
+          {
+            "section_id": "communication",
+            "applicable_weight": "35.00",
+            "weighted_contribution": "38.1250",
+            "local_percent": "87.14"
+          },
+          {
+            "section_id": "critical",
+            "applicable_weight": "0.00",
+            "weighted_contribution": "0.0000",
+            "local_percent": null
+          }
+        ],
+        "applicable_weight": "80.00",
+        "earned_points": "70.50",
+        "total": "88.13",
+        "gross_error": false
+      }
+    },
+    {
+      "id": "no_applicable_weight",
+      "template_checklist_version_id": "freedom-chat@1",
+      "test_only_criterion_subset": [
+        "02",
+        "03",
+        "08"
+      ],
+      "answers": {
+        "02": null,
+        "03": null,
+        "08": false
+      },
+      "expected": {
+        "criteria": [
+          {
+            "criterion_id": "02",
+            "raw_value": null,
+            "applicability": "not_applicable",
+            "weight": 15,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          },
+          {
+            "criterion_id": "03",
+            "raw_value": null,
+            "applicability": "not_applicable",
+            "weight": 20,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          },
+          {
+            "criterion_id": "08",
+            "raw_value": false,
+            "applicability": "applicable",
+            "weight": 0,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          }
+        ],
+        "sections": [
+          {
+            "section_id": "opening",
+            "applicable_weight": "0.00",
+            "weighted_contribution": null,
+            "local_percent": null
+          },
+          {
+            "section_id": "solution",
+            "applicable_weight": "0.00",
+            "weighted_contribution": null,
+            "local_percent": null
+          },
+          {
+            "section_id": "communication",
+            "applicable_weight": "0.00",
+            "weighted_contribution": null,
+            "local_percent": null
+          },
+          {
+            "section_id": "critical",
+            "applicable_weight": "0.00",
+            "weighted_contribution": null,
+            "local_percent": null
+          }
+        ],
+        "applicable_weight": "0.00",
+        "earned_points": "0.00",
+        "total": null,
+        "gross_error": false
+      }
+    },
+    {
+      "id": "gross_flag_does_not_change_total",
+      "template_checklist_version_id": "freedom-chat@1",
+      "test_only_criterion_subset": null,
+      "answers": {
+        "01": true,
+        "02": null,
+        "03": null,
+        "04": 15,
+        "05": true,
+        "06": 7,
+        "07": true,
+        "08": true
+      },
+      "expected": {
+        "criteria": [
+          {
+            "criterion_id": "01",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 10,
+            "normalized_value": "1",
+            "earned_points": "10.00",
+            "effective_weight": "15.3846",
+            "weighted_contribution": "15.3846"
+          },
+          {
+            "criterion_id": "02",
+            "raw_value": null,
+            "applicability": "not_applicable",
+            "weight": 15,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          },
+          {
+            "criterion_id": "03",
+            "raw_value": null,
+            "applicability": "not_applicable",
+            "weight": 20,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          },
+          {
+            "criterion_id": "04",
+            "raw_value": 15,
+            "applicability": "applicable",
+            "weight": 20,
+            "normalized_value": "0.75",
+            "earned_points": "15.00",
+            "effective_weight": "30.7692",
+            "weighted_contribution": "23.0769"
+          },
+          {
+            "criterion_id": "05",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 15,
+            "normalized_value": "1",
+            "earned_points": "15.00",
+            "effective_weight": "23.0769",
+            "weighted_contribution": "23.0769"
+          },
+          {
+            "criterion_id": "06",
+            "raw_value": 7,
+            "applicability": "applicable",
+            "weight": 15,
+            "normalized_value": "0.7",
+            "earned_points": "10.50",
+            "effective_weight": "23.0769",
+            "weighted_contribution": "16.1538"
+          },
+          {
+            "criterion_id": "07",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 5,
+            "normalized_value": "1",
+            "earned_points": "5.00",
+            "effective_weight": "7.6923",
+            "weighted_contribution": "7.6923"
+          },
+          {
+            "criterion_id": "08",
+            "raw_value": true,
+            "applicability": "applicable",
+            "weight": 0,
+            "normalized_value": null,
+            "earned_points": null,
+            "effective_weight": null,
+            "weighted_contribution": null
+          }
+        ],
+        "sections": [
+          {
+            "section_id": "opening",
+            "applicable_weight": "10.00",
+            "weighted_contribution": "15.3846",
+            "local_percent": "100.00"
+          },
+          {
+            "section_id": "solution",
+            "applicable_weight": "20.00",
+            "weighted_contribution": "23.0769",
+            "local_percent": "75.00"
+          },
+          {
+            "section_id": "communication",
+            "applicable_weight": "35.00",
+            "weighted_contribution": "46.9231",
+            "local_percent": "87.14"
+          },
+          {
+            "section_id": "critical",
+            "applicable_weight": "0.00",
+            "weighted_contribution": "0.0000",
+            "local_percent": null
+          }
+        ],
+        "applicable_weight": "65.00",
+        "earned_points": "55.50",
+        "total": "85.38",
+        "gross_error": true
+      }
+    },
+    {
+      "id": "invalid_scale_8",
+      "template_checklist_version_id": "freedom-chat@1",
+      "test_only_criterion_subset": null,
+      "answers": {
+        "01": true,
+        "02": null,
+        "03": null,
+        "04": 15,
+        "05": true,
+        "06": 8,
+        "07": true,
+        "08": false
+      },
+      "expected": {
+        "error": "invalid_scale"
+      }
+    },
+    {
+      "id": "na_forbidden_for_06",
+      "template_checklist_version_id": "freedom-chat@1",
+      "test_only_criterion_subset": null,
+      "answers": {
+        "01": true,
+        "02": null,
+        "03": null,
+        "04": 15,
+        "05": true,
+        "06": null,
+        "07": true,
+        "08": false
+      },
+      "expected": {
+        "error": "na_not_allowed"
+      }
+    },
+    {
+      "id": "boolean_is_not_a_scale_number",
+      "template_checklist_version_id": "freedom-chat@1",
+      "test_only_criterion_subset": null,
+      "answers": {
+        "01": true,
+        "02": null,
+        "03": null,
+        "04": true,
+        "05": true,
+        "06": 7,
+        "07": true,
+        "08": false
+      },
+      "expected": {
+        "error": "invalid_scale"
+      }
+    }
+  ]
+}

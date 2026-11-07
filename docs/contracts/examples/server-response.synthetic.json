@@ -1,0 +1,486 @@
+{
+  "kind": "evaluation_response",
+  "schema_version": "1.0",
+  "evaluation_id": "example-synthetic-contract-001",
+  "conversation_id": "synthetic-contract-001",
+  "checklist_id": "freedom-chat",
+  "checklist_version_id": "freedom-chat@1",
+  "status": "completed",
+  "generation": {
+    "mode": "demo",
+    "origin": "hand_authored_contract_fixture",
+    "model_id": null,
+    "is_ground_truth": false,
+    "use_for_model_quality": false,
+    "note": "Ответы заданы для разработки интерфейса и проверки арифметики. Это не результат модели и не эталон качества выбранного DEV-диалога."
+  },
+  "model_result": {
+    "kind": "model_result",
+    "schema_version": "1.0",
+    "evaluation_id": "example-synthetic-contract-001",
+    "conversation_id": "synthetic-contract-001",
+    "checklist_id": "freedom-chat",
+    "checklist_version_id": "freedom-chat@1",
+    "generation": {
+      "mode": "demo",
+      "origin": "hand_authored_contract_fixture",
+      "model_id": null,
+      "is_ground_truth": false,
+      "use_for_model_quality": false,
+      "note": "Ответы заданы для разработки интерфейса и проверки арифметики. Это не результат модели и не эталон качества выбранного DEV-диалога."
+    },
+    "criteria": [
+      {
+        "criterion_id": "01",
+        "decision_status": "evaluated",
+        "applicability": "applicable",
+        "value": true,
+        "reason": "Демонстрационный ответ по критерию 01 для общего контракта. Оценку содержания должен заменить настоящий оценщик.",
+        "evidence": [
+          {
+            "group_id": "SYNTHETIC",
+            "conversation_id": "synthetic-contract-001",
+            "message_id": "synthetic-contract-001:m0004",
+            "kind": "support",
+            "span": null
+          }
+        ],
+        "na_reason": null,
+        "knowledge_references": [],
+        "review_reasons": [
+          "Иллюстративный ответ; не использовать как разметку DEV."
+        ],
+        "analysis_scope": [
+          "transcript"
+        ]
+      },
+      {
+        "criterion_id": "02",
+        "decision_status": "evaluated",
+        "applicability": "not_applicable",
+        "value": null,
+        "reason": "Демонстрационный ответ по критерию 02 для общего контракта. Оценку содержания должен заменить настоящий оценщик.",
+        "evidence": [
+          {
+            "group_id": "SYNTHETIC",
+            "conversation_id": "synthetic-contract-001",
+            "message_id": "synthetic-contract-001:m0006",
+            "kind": "context",
+            "span": {
+              "start_message_id": "synthetic-contract-001:m0001",
+              "end_message_id": "synthetic-contract-001:m0006"
+            }
+          }
+        ],
+        "na_reason": "Данных для ответа хватало с самого начала.",
+        "knowledge_references": [],
+        "review_reasons": [
+          "Иллюстративный ответ; не использовать как разметку DEV."
+        ],
+        "analysis_scope": [
+          "transcript"
+        ]
+      },
+      {
+        "criterion_id": "03",
+        "decision_status": "evaluated",
+        "applicability": "not_applicable",
+        "value": null,
+        "reason": "Демонстрационный ответ по критерию 03 для общего контракта. Оценку содержания должен заменить настоящий оценщик.",
+        "evidence": [
+          {
+            "group_id": "SYNTHETIC",
+            "conversation_id": "synthetic-contract-001",
+            "message_id": "synthetic-contract-001:m0006",
+            "kind": "context",
+            "span": {
+              "start_message_id": "synthetic-contract-001:m0001",
+              "end_message_id": "synthetic-contract-001:m0006"
+            }
+          }
+        ],
+        "na_reason": "Запрос не требовал идентификации.",
+        "knowledge_references": [],
+        "review_reasons": [
+          "Иллюстративный ответ; не использовать как разметку DEV."
+        ],
+        "analysis_scope": [
+          "transcript"
+        ]
+      },
+      {
+        "criterion_id": "04",
+        "decision_status": "evaluated",
+        "applicability": "applicable",
+        "value": 15,
+        "reason": "Демонстрационный ответ по критерию 04 для общего контракта. Оценку содержания должен заменить настоящий оценщик.",
+        "evidence": [
+          {
+            "group_id": "SYNTHETIC",
+            "conversation_id": "synthetic-contract-001",
+            "message_id": "synthetic-contract-001:m0006",
+            "kind": "support",
+            "span": null
+          }
+        ],
+        "na_reason": null,
+        "knowledge_references": [],
+        "review_reasons": [
+          "Иллюстративный ответ; не использовать как разметку DEV."
+        ],
+        "analysis_scope": [
+          "transcript"
+        ]
+      },
+      {
+        "criterion_id": "05",
+        "decision_status": "evaluated",
+        "applicability": "applicable",
+        "value": true,
+        "reason": "Демонстрационный ответ по критерию 05 для общего контракта. Оценку содержания должен заменить настоящий оценщик.",
+        "evidence": [
+          {
+            "group_id": "SYNTHETIC",
+            "conversation_id": "synthetic-contract-001",
+            "message_id": "synthetic-contract-001:m0006",
+            "kind": "support",
+            "span": null
+          }
+        ],
+        "na_reason": null,
+        "knowledge_references": [],
+        "review_reasons": [
+          "Иллюстративный ответ; не использовать как разметку DEV."
+        ],
+        "analysis_scope": [
+          "transcript"
+        ]
+      },
+      {
+        "criterion_id": "06",
+        "decision_status": "evaluated",
+        "applicability": "applicable",
+        "value": 7,
+        "reason": "Демонстрационный ответ по критерию 06 для общего контракта. Оценку содержания должен заменить настоящий оценщик.",
+        "evidence": [
+          {
+            "group_id": "SYNTHETIC",
+            "conversation_id": "synthetic-contract-001",
+            "message_id": "synthetic-contract-001:m0006",
+            "kind": "support",
+            "span": null
+          }
+        ],
+        "na_reason": null,
+        "knowledge_references": [],
+        "review_reasons": [
+          "Иллюстративный ответ; не использовать как разметку DEV."
+        ],
+        "analysis_scope": [
+          "transcript"
+        ]
+      },
+      {
+        "criterion_id": "07",
+        "decision_status": "evaluated",
+        "applicability": "applicable",
+        "value": true,
+        "reason": "Демонстрационный ответ по критерию 07 для общего контракта. Оценку содержания должен заменить настоящий оценщик.",
+        "evidence": [
+          {
+            "group_id": "SYNTHETIC",
+            "conversation_id": "synthetic-contract-001",
+            "message_id": "synthetic-contract-001:m0006",
+            "kind": "support",
+            "span": null
+          }
+        ],
+        "na_reason": null,
+        "knowledge_references": [],
+        "review_reasons": [
+          "Иллюстративный ответ; не использовать как разметку DEV."
+        ],
+        "analysis_scope": [
+          "transcript"
+        ]
+      },
+      {
+        "criterion_id": "08",
+        "decision_status": "evaluated",
+        "applicability": "applicable",
+        "value": false,
+        "reason": "Демонстрационный ответ по критерию 08 для общего контракта. Оценку содержания должен заменить настоящий оценщик.",
+        "evidence": [
+          {
+            "group_id": "SYNTHETIC",
+            "conversation_id": "synthetic-contract-001",
+            "message_id": "synthetic-contract-001:m0006",
+            "kind": "context",
+            "span": {
+              "start_message_id": "synthetic-contract-001:m0001",
+              "end_message_id": "synthetic-contract-001:m0006"
+            }
+          }
+        ],
+        "na_reason": null,
+        "knowledge_references": [],
+        "review_reasons": [
+          "Иллюстративный ответ; не использовать как разметку DEV."
+        ],
+        "analysis_scope": [
+          "transcript"
+        ]
+      }
+    ],
+    "group_id": "SYNTHETIC"
+  },
+  "original_result": {
+    "criteria": [
+      {
+        "criterion_id": "01",
+        "raw_value": true,
+        "applicability": "applicable",
+        "weight": 10,
+        "normalized_value": "1",
+        "earned_points": "10.00",
+        "effective_weight": "15.3846",
+        "weighted_contribution": "15.3846"
+      },
+      {
+        "criterion_id": "02",
+        "raw_value": null,
+        "applicability": "not_applicable",
+        "weight": 15,
+        "normalized_value": null,
+        "earned_points": null,
+        "effective_weight": null,
+        "weighted_contribution": null
+      },
+      {
+        "criterion_id": "03",
+        "raw_value": null,
+        "applicability": "not_applicable",
+        "weight": 20,
+        "normalized_value": null,
+        "earned_points": null,
+        "effective_weight": null,
+        "weighted_contribution": null
+      },
+      {
+        "criterion_id": "04",
+        "raw_value": 15,
+        "applicability": "applicable",
+        "weight": 20,
+        "normalized_value": "0.75",
+        "earned_points": "15.00",
+        "effective_weight": "30.7692",
+        "weighted_contribution": "23.0769"
+      },
+      {
+        "criterion_id": "05",
+        "raw_value": true,
+        "applicability": "applicable",
+        "weight": 15,
+        "normalized_value": "1",
+        "earned_points": "15.00",
+        "effective_weight": "23.0769",
+        "weighted_contribution": "23.0769"
+      },
+      {
+        "criterion_id": "06",
+        "raw_value": 7,
+        "applicability": "applicable",
+        "weight": 15,
+        "normalized_value": "0.7",
+        "earned_points": "10.50",
+        "effective_weight": "23.0769",
+        "weighted_contribution": "16.1538"
+      },
+      {
+        "criterion_id": "07",
+        "raw_value": true,
+        "applicability": "applicable",
+        "weight": 5,
+        "normalized_value": "1",
+        "earned_points": "5.00",
+        "effective_weight": "7.6923",
+        "weighted_contribution": "7.6923"
+      },
+      {
+        "criterion_id": "08",
+        "raw_value": false,
+        "applicability": "applicable",
+        "weight": 0,
+        "normalized_value": null,
+        "earned_points": null,
+        "effective_weight": null,
+        "weighted_contribution": null
+      }
+    ],
+    "sections": [
+      {
+        "section_id": "opening",
+        "applicable_weight": "10.00",
+        "weighted_contribution": "15.3846",
+        "local_percent": "100.00"
+      },
+      {
+        "section_id": "solution",
+        "applicable_weight": "20.00",
+        "weighted_contribution": "23.0769",
+        "local_percent": "75.00"
+      },
+      {
+        "section_id": "communication",
+        "applicable_weight": "35.00",
+        "weighted_contribution": "46.9231",
+        "local_percent": "87.14"
+      },
+      {
+        "section_id": "critical",
+        "applicable_weight": "0.00",
+        "weighted_contribution": "0.0000",
+        "local_percent": null
+      }
+    ],
+    "applicable_weight": "65.00",
+    "earned_points": "55.50",
+    "total": "85.38",
+    "gross_error": false
+  },
+  "final_result": {
+    "criteria": [
+      {
+        "criterion_id": "01",
+        "raw_value": true,
+        "applicability": "applicable",
+        "weight": 10,
+        "normalized_value": "1",
+        "earned_points": "10.00",
+        "effective_weight": "15.3846",
+        "weighted_contribution": "15.3846"
+      },
+      {
+        "criterion_id": "02",
+        "raw_value": null,
+        "applicability": "not_applicable",
+        "weight": 15,
+        "normalized_value": null,
+        "earned_points": null,
+        "effective_weight": null,
+        "weighted_contribution": null
+      },
+      {
+        "criterion_id": "03",
+        "raw_value": null,
+        "applicability": "not_applicable",
+        "weight": 20,
+        "normalized_value": null,
+        "earned_points": null,
+        "effective_weight": null,
+        "weighted_contribution": null
+      },
+      {
+        "criterion_id": "04",
+        "raw_value": 20,
+        "applicability": "applicable",
+        "weight": 20,
+        "normalized_value": "1",
+        "earned_points": "20.00",
+        "effective_weight": "30.7692",
+        "weighted_contribution": "30.7692"
+      },
+      {
+        "criterion_id": "05",
+        "raw_value": true,
+        "applicability": "applicable",
+        "weight": 15,
+        "normalized_value": "1",
+        "earned_points": "15.00",
+        "effective_weight": "23.0769",
+        "weighted_contribution": "23.0769"
+      },
+      {
+        "criterion_id": "06",
+        "raw_value": 7,
+        "applicability": "applicable",
+        "weight": 15,
+        "normalized_value": "0.7",
+        "earned_points": "10.50",
+        "effective_weight": "23.0769",
+        "weighted_contribution": "16.1538"
+      },
+      {
+        "criterion_id": "07",
+        "raw_value": true,
+        "applicability": "applicable",
+        "weight": 5,
+        "normalized_value": "1",
+        "earned_points": "5.00",
+        "effective_weight": "7.6923",
+        "weighted_contribution": "7.6923"
+      },
+      {
+        "criterion_id": "08",
+        "raw_value": false,
+        "applicability": "applicable",
+        "weight": 0,
+        "normalized_value": null,
+        "earned_points": null,
+        "effective_weight": null,
+        "weighted_contribution": null
+      }
+    ],
+    "sections": [
+      {
+        "section_id": "opening",
+        "applicable_weight": "10.00",
+        "weighted_contribution": "15.3846",
+        "local_percent": "100.00"
+      },
+      {
+        "section_id": "solution",
+        "applicable_weight": "20.00",
+        "weighted_contribution": "30.7692",
+        "local_percent": "100.00"
+      },
+      {
+        "section_id": "communication",
+        "applicable_weight": "35.00",
+        "weighted_contribution": "46.9231",
+        "local_percent": "87.14"
+      },
+      {
+        "section_id": "critical",
+        "applicable_weight": "0.00",
+        "weighted_contribution": "0.0000",
+        "local_percent": null
+      }
+    ],
+    "applicable_weight": "65.00",
+    "earned_points": "60.50",
+    "total": "93.08",
+    "gross_error": false
+  },
+  "review_history": [
+    {
+      "appeal_id": "appeal-example-04",
+      "criterion_id": "04",
+      "checklist_version_id": "freedom-chat@1",
+      "comment": "Учебная апелляция для проверки интерфейса и пересчёта.",
+      "decision": "changed",
+      "original_value": 15,
+      "new_value": 20,
+      "reason": "Имитация пересмотра: ступень 15 изменена на 20. Не является экспертной разметкой DEV.",
+      "revision": 1,
+      "evidence": [
+        {
+          "group_id": "SYNTHETIC",
+          "conversation_id": "synthetic-contract-001",
+          "message_id": "synthetic-contract-001:m0006"
+        }
+      ]
+    }
+  ],
+  "group_id": "SYNTHETIC"
+}

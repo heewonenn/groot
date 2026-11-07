@@ -1,0 +1,47 @@
+{
+  "group_id": "SYNTHETIC",
+  "conversation_id": "synthetic-contract-001",
+  "channel": "agent chat",
+  "language": "RU",
+  "message_count": 6,
+  "has_audio": false,
+  "audio_url": null,
+  "transcript": [
+    {
+      "message_id": "synthetic-contract-001:m0001",
+      "timestamp": "00:00",
+      "speaker": "client",
+      "text": "Как скачать справку в учебном сервисе?"
+    },
+    {
+      "message_id": "synthetic-contract-001:m0002",
+      "timestamp": "00:01",
+      "speaker": "bot",
+      "text": "Передаю вопрос оператору."
+    },
+    {
+      "message_id": "synthetic-contract-001:m0003",
+      "timestamp": "00:01",
+      "speaker": "system",
+      "text": "Оператор подключён."
+    },
+    {
+      "message_id": "synthetic-contract-001:m0004",
+      "timestamp": "00:10",
+      "speaker": "operator",
+      "text": "Здравствуйте, я Анна. Откройте раздел справок и нажмите Скачать."
+    },
+    {
+      "message_id": "synthetic-contract-001:m0005",
+      "timestamp": "00:20",
+      "speaker": "client",
+      "text": "Получилось. Можно выбрать период?"
+    },
+    {
+      "message_id": "synthetic-contract-001:m0006",
+      "timestamp": "00:40",
+      "speaker": "operator",
+      "text": "Перед скачиванием выберите период в поле над кнопкой. Если появятся вопросы, обращайтесь. До свидания!"
+    }
+  ]
+}

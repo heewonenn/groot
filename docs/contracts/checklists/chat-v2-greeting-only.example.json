@@ -1,0 +1,192 @@
+{
+  "kind": "checklist_version",
+  "schema_version": "1.0",
+  "checklist_id": "freedom-chat",
+  "checklist_version_id": "freedom-chat@2",
+  "version": 2,
+  "previous_version_id": "freedom-chat@1",
+  "derived_from_version_id": null,
+  "title": "Качество чатов Freedom Broker",
+  "channels": [
+    "agent chat"
+  ],
+  "source": "CQA_Chat_Quality_Checklist.pdf, страницы 1–3",
+  "sections": [
+    {
+      "id": "opening",
+      "title": "Начало и понимание запроса"
+    },
+    {
+      "id": "solution",
+      "title": "Безопасность и решение"
+    },
+    {
+      "id": "communication",
+      "title": "Ведение и завершение диалога"
+    },
+    {
+      "id": "critical",
+      "title": "Грубые нарушения"
+    }
+  ],
+  "criteria": [
+    {
+      "id": "01",
+      "title": "Установление контакта",
+      "section_id": "opening",
+      "instruction": "Да: оператор поздоровался на языке клиента в первом ответе. Представляться для этого критерия не требуется. Действия бота оператору не засчитываются.",
+      "answer_type": "boolean",
+      "weight": 10,
+      "allow_na": false,
+      "na_condition": null,
+      "levels": [],
+      "evidence_required": true,
+      "flag_when": null
+    },
+    {
+      "id": "02",
+      "title": "Выявление потребности",
+      "section_id": "opening",
+      "instruction": "Да: оператор учёл известные детали и уточнил недостающее до ответа.",
+      "answer_type": "boolean",
+      "weight": 15,
+      "allow_na": true,
+      "na_condition": "Данных для ответа хватало с самого начала.",
+      "levels": [],
+      "evidence_required": true,
+      "flag_when": null
+    },
+    {
+      "id": "03",
+      "title": "Идентификация",
+      "section_id": "solution",
+      "instruction": "Да: проверка личности подтверждена до раскрытия данных или защищённого действия. Если проверка требовалась, но не подтверждена, ответ Нет. Общий вопрос о тарифах не требует идентификации.",
+      "answer_type": "boolean",
+      "weight": 20,
+      "allow_na": true,
+      "na_condition": "Запрос не требовал идентификации.",
+      "levels": [],
+      "evidence_required": true,
+      "flag_when": null
+    },
+    {
+      "id": "04",
+      "title": "Корректная и полная консультация",
+      "section_id": "solution",
+      "instruction": "Оценить корректность и полноту ответа или предложенного следующего шага. Проверку продуктовых фактов обосновывать доступными официальными источниками. Отсутствие справочника не означает автоматически ошибку оператора.",
+      "answer_type": "scale",
+      "weight": 20,
+      "allow_na": true,
+      "na_condition": "Чат закончился до того, как клиент сформулировал запрос.",
+      "levels": [
+        {
+          "value": 0,
+          "description": "Ответа по существу нет или ключевая рекомендация ошибочна.",
+          "normalized_value": "0"
+        },
+        {
+          "value": 5,
+          "description": "Есть общая подсказка, но клиенту всё ещё непонятно, как действовать.",
+          "normalized_value": "0.25"
+        },
+        {
+          "value": 10,
+          "description": "Часть запроса закрыта, существенный вопрос остался открытым.",
+          "normalized_value": "0.5"
+        },
+        {
+          "value": 15,
+          "description": "Основной вопрос решён, пропущена второстепенная деталь.",
+          "normalized_value": "0.75"
+        },
+        {
+          "value": 20,
+          "description": "Все существенные вопросы закрыты или дан корректный следующий шаг.",
+          "normalized_value": "1"
+        }
+      ],
+      "evidence_required": true,
+      "flag_when": null
+    },
+    {
+      "id": "05",
+      "title": "Эмпатия и клиентоориентированность",
+      "section_id": "communication",
+      "instruction": "Да: оператор вежлив и при недовольстве клиента или описании неудобства реагирует на конкретную проблему.",
+      "answer_type": "boolean",
+      "weight": 15,
+      "allow_na": false,
+      "na_condition": null,
+      "levels": [],
+      "evidence_required": true,
+      "flag_when": null
+    },
+    {
+      "id": "06",
+      "title": "Управление диалогом, скорость и грамотность",
+      "section_id": "communication",
+      "instruction": "Оценить ясность, порядок ответов и предупреждение об ожидании. Порог первой реакции в три минуты, теги и вложения в оценку не входят. Консультация и ведение диалога оцениваются независимо.",
+      "answer_type": "scale",
+      "weight": 15,
+      "allow_na": false,
+      "na_condition": null,
+      "levels": [
+        {
+          "value": 0,
+          "description": "Из-за бессвязных или противоречивых реплик ход диалога непонятен.",
+          "normalized_value": "0"
+        },
+        {
+          "value": 4,
+          "description": "Клиенту приходится переспрашивать из-за формулировок или порядка ответов.",
+          "normalized_value": "0.4"
+        },
+        {
+          "value": 7,
+          "description": "Один заметный сбой, но клиент может понять ответ и продолжить.",
+          "normalized_value": "0.7"
+        },
+        {
+          "value": 10,
+          "description": "Ответы ясные и связные. Если было явное ожидание, оператор предупредил.",
+          "normalized_value": "1"
+        }
+      ],
+      "evidence_required": true,
+      "flag_when": null
+    },
+    {
+      "id": "07",
+      "title": "Завершение",
+      "section_id": "communication",
+      "instruction": "Да: оператор подвёл итог или предложил дальнейшую помощь и попрощался. Условие: (итог ИЛИ дальнейшая помощь) И прощание.",
+      "answer_type": "boolean",
+      "weight": 5,
+      "allow_na": true,
+      "na_condition": "Чат оборвался до возможности его завершить.",
+      "levels": [],
+      "evidence_required": true,
+      "flag_when": null
+    },
+    {
+      "id": "08",
+      "title": "Грубые ошибки",
+      "section_id": "critical",
+      "instruction": "Да: выявлено оскорбление клиента, предложение платной услуги в обход компании или раскрытие конфиденциальной информации. Для обхода компании достаточно предложения личного инвестирования или частной платной консультации; согласие клиента не требуется. Флаг не меняет баллы.",
+      "answer_type": "flag",
+      "weight": 0,
+      "allow_na": false,
+      "na_condition": null,
+      "levels": [],
+      "evidence_required": true,
+      "flag_when": true
+    }
+  ],
+  "scoring": {
+    "total_max": 100,
+    "rounding": "ROUND_HALF_UP",
+    "decimal_places": 2,
+    "exclude_na_from_denominator": true,
+    "flag_affects_total": false
+  }
+}

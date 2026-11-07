@@ -1,0 +1,77 @@
+{
+  "kind": "conversation",
+  "schema_version": "1.0",
+  "conversation_id": "synthetic-contract-001",
+  "conversation_version_id": "4fe4f777-859e-5476-9846-9f6c1e1ce0ac",
+  "content_sha256": "b68817ed5fee7636abb0d6943d174cc27a7752706d11125cbdb2193a0eec8a32",
+  "channel": "agent chat",
+  "language": "RU",
+  "source": {
+    "kind": "synthetic",
+    "dataset_group_id": "SYNTHETIC",
+    "snapshot_sha256": null
+  },
+  "turns": [
+    {
+      "turn_id": "4fe4f777-859e-5476-9846-9f6c1e1ce0ac:t0000",
+      "index": 0,
+      "timestamp": "00:00",
+      "speaker": "client",
+      "text": "Как скачать справку в учебном сервисе?",
+      "elapsed_from_first_turn_seconds": 0,
+      "audio_offset_seconds": null
+    },
+    {
+      "turn_id": "4fe4f777-859e-5476-9846-9f6c1e1ce0ac:t0001",
+      "index": 1,
+      "timestamp": "00:01",
+      "speaker": "bot",
+      "text": "Передаю вопрос оператору.",
+      "elapsed_from_first_turn_seconds": 1,
+      "audio_offset_seconds": null
+    },
+    {
+      "turn_id": "4fe4f777-859e-5476-9846-9f6c1e1ce0ac:t0002",
+      "index": 2,
+      "timestamp": "00:01",
+      "speaker": "system",
+      "text": "Оператор подключён.",
+      "elapsed_from_first_turn_seconds": 1,
+      "audio_offset_seconds": null
+    },
+    {
+      "turn_id": "4fe4f777-859e-5476-9846-9f6c1e1ce0ac:t0003",
+      "index": 3,
+      "timestamp": "00:10",
+      "speaker": "operator",
+      "text": "Здравствуйте, я Анна. Откройте раздел справок и нажмите Скачать.",
+      "elapsed_from_first_turn_seconds": 10,
+      "audio_offset_seconds": null
+    },
+    {
+      "turn_id": "4fe4f777-859e-5476-9846-9f6c1e1ce0ac:t0004",
+      "index": 4,
+      "timestamp": "00:20",
+      "speaker": "client",
+      "text": "Получилось. Можно выбрать период?",
+      "elapsed_from_first_turn_seconds": 20,
+      "audio_offset_seconds": null
+    },
+    {
+      "turn_id": "4fe4f777-859e-5476-9846-9f6c1e1ce0ac:t0005",
+      "index": 5,
+      "timestamp": "00:40",
+      "speaker": "operator",
+      "text": "Перед скачиванием выберите период в поле над кнопкой. Если появятся вопросы, обращайтесь. До свидания!",
+      "elapsed_from_first_turn_seconds": 40,
+      "audio_offset_seconds": null
+    }
+  ],
+  "audio": {
+    "availability": "none",
+    "playback_route": null,
+    "alignment_status": "not_applicable",
+    "pause_or_resume_turn_indices": [],
+    "verification_note": "Чат не содержит аудио."
+  }
+}
