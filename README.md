@@ -10,6 +10,13 @@ The shared API now follows `CQA-team.zip`: port **8765**, `message_id` reference
 and common chat **p1-ru-001**. The ZIP data router and participant 1 checklist
 router run in the same FastAPI app. See [ZIP integration](docs/ZIP_INTEGRATION.md).
 
+Participant 4 adds the [dialogue and recording screen](http://127.0.0.1:5173/conversations),
+verified playback positions and persistent evaluation jobs to this app.
+See [the participant 4 handoff](docs/PARTICIPANT_4_HANDOFF.md) for integration and verification.
+
+Official submissions for team **WE ARE GROOT** are generated in `results/dev/` and
+`results/prod/`. See [the submission commands and pre-push checks](results/README.md).
+
 Team handoff: [four-participant implementation plan](docs/TEAM_IMPLEMENTATION_PLAN.md) and [shared data contracts and fixtures](docs/contracts/README.md). DEV examples under `data/examples/team-zip-v1` are local and ignored by Git; public examples are synthetic and are not model-quality labels.
 
 Participant 1 is implemented: checklist editor, immutable versions, SQLite persistence

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { Activity } from 'lucide-react'
 import ChecklistsPage from './features/checklists/ChecklistsPage'
+import ConversationsPage from './features/dialogues/ConversationsPage'
 
 function WorkspaceHome() {
   const [status, setStatus] = useState('Checking API…')
@@ -22,6 +23,7 @@ function WorkspaceHome() {
       <h1 className="mt-3 text-4xl font-bold tracking-tight">Hackathon AI</h1>
       <p className="mt-5 text-lg text-slate-600">Your starting point for an evidence-driven AI project.</p>
       <a href="/checklists" className="mt-6 inline-block rounded-lg bg-teal-700 px-4 py-3 font-medium text-white hover:bg-teal-800">Открыть редактор чек-листов →</a>
+      <a href="/conversations" className="mt-3 block w-fit rounded-lg px-4 py-2 font-medium text-teal-800 underline">Открыть диалоги →</a>
       <section aria-label="Connection" className="mt-10 rounded-2xl border border-slate-200 bg-white p-6">
         <h2 className="text-xl font-semibold">Backend connection</h2>
         <p role="status" aria-live="polite" className="my-4 text-slate-600">{status}</p>
@@ -33,5 +35,6 @@ function WorkspaceHome() {
 }
 
 export default function App() {
+  if (window.location.pathname === '/conversations') return <ConversationsPage />
   return window.location.pathname === '/checklists' ? <ChecklistsPage /> : <WorkspaceHome />
 }

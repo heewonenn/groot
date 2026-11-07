@@ -1,12 +1,11 @@
 """Import an existing private organizer snapshot without a network request."""
 
 import argparse
-import json
 from pathlib import Path
 
 from fastapi import HTTPException
 
-from backend.app.team_data import store_group, validate_group
+from backend.app.team_data import read_snapshot, store_group, validate_group
 
 
 def main() -> None:
@@ -15,7 +14,8 @@ def main() -> None:
     parser.add_argument("--group-id", default="DEV")
     args = parser.parse_args()
     try:
-        payload = json.loads(args.snapshot.read_text(encoding="utf-8-sig"))
+        with args.snapshot.open("rb") as stream:
+            payload = read_snapshot(stream)
         result = store_group(args.group_id, validate_group(args.group_id, payload))
     except HTTPException as error:
         parser.exit(1, f"Import rejected ({error.status_code}): {error.detail}\n")
