@@ -1,0 +1,34 @@
+.cv-page { max-width: 1360px; margin: auto; padding: 32px clamp(14px, 4vw, 52px); }
+.cv-heading { margin-bottom: 20px; overflow-wrap: anywhere; }
+.cv-heading h1 { font-size: clamp(26px, 3vw, 36px); font-weight: 680; letter-spacing: -.04em; }
+.cv-heading h2, .cv-list h2 { font-size: 20px; font-weight: 650; }
+.cv-heading p, .cv-list small, .cv-turn-head span, .cv-recording p { color: #51675b; font-size: 13px; }
+.cv-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; padding: 16px; }
+.cv-controls label { flex: 1 1 128px; }
+.cv-columns { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(0, 2.6fr); align-items: start; gap: 16px; margin-top: 20px; }
+.cv-list, .cv-transcript { min-width: 0; padding: 18px; overflow-wrap: anywhere; }
+.cv-list ul { margin-top: 12px; max-height: 60vh; overflow: auto; }
+.cv-list-link { display: flex; align-items: center; gap: 12px; padding: 10px; color: #244b37; border-radius: 7px; }
+.cv-list-link:hover, .cv-list-link[aria-current] { background: #e8f1e9; }
+.cv-list-link svg { flex: none; }
+.cv-list-link small { display: block; }
+.cv-list p, .cv-transcript > p { margin-block: 10px; }
+.cv-turns { display: grid; gap: 10px; margin-top: 14px; }
+.cv-turn { min-width: 0; padding: 12px 14px; background: #f7f9f7; border: 1px solid var(--cq-line); border-radius: 8px; scroll-margin-block: 20px; }
+.cv-turn.cv-selected { border-color: #287855; background: #edf6ef; outline: 2px solid #287855; }
+.cv-turn p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+.cv-turn-head { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 12px; margin-bottom: 6px; }
+.cv-turn-head strong { font-size: 13px; }
+.cv-link-icon { display: inline-flex; margin-left: auto; color: #285c46; padding: 5px; }
+.cv-notice, .cv-recording { padding: 12px; }
+.cv-notice { margin-block: 8px; color: #5a451b; background: #f8f3e9; border-radius: 7px; }
+.cv-link, .cv-anchors button { text-decoration: underline; color: #14664c; }
+.cv-recording h3, .cv-anchors { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.cv-recording h3 { font-size: 14px; font-weight: 650; }
+.cv-recording audio { display: block; width: 100%; margin: 8px 0; }
+.cv-anchors { font-size: 13px; }
+@media (max-width: 700px) {
+  .cv-columns { grid-template-columns: minmax(0,1fr); }
+  .cv-list ul { max-height: 220px; }
+  .cv-transcript { padding: 12px; }
+}

@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import unittest
+from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -177,6 +178,28 @@ class ImportTests(unittest.TestCase):
                 app.source_url("CONTROL 10"),
                 "https://example.invalid/invoke?sig=synthetic%2Bvalue&sv=1.0&group_id=CONTROL%2010",
             )
+
+    def test_health_when_queue_storage_is_unavailable(self):
+        with patch("backend.app.main.JobRunner.start", side_effect=sqlite3.OperationalError):
+            with TestClient(application) as client:
+                self.assertEqual(client.get("/api/health").json(), {"status": "ok"})
+                self.assertFalse(client.get("/api/capabilities").json()["model_available"])
+
+    def test_bounded_snapshot_and_private_field_errors(self):
+        with patch.dict(os.environ, {"CQA_IMPORT_MAX_BYTES": "4"}):
+            self.assertEqual(app.read_snapshot(BytesIO(b"{}")), {})
+            with self.assertRaises(app.HTTPException) as error:
+                app.read_snapshot(BytesIO(b'{"very":"long"}'))
+            self.assertEqual(error.exception.status_code, 413)
+        for field, invalid in [("text", " "), ("timestamp", "private-invalid-stamp")]:
+            with self.subTest(field=field):
+                broken = chat("unknown")
+                broken["transcript"][2][field] = invalid
+                result = self.import_group("DEV", [chat("valid"), broken])
+                self.assertEqual(result.status_code, 502)
+                self.assertIn(f"records.1.transcript.2.{field}", result.json()["detail"])
+                self.assertNotIn("private-invalid-stamp", result.text)
+                self.assertEqual(self.client.get("/api/groups/DEV/conversations").status_code, 404)
 
 
 if __name__ == "__main__":
