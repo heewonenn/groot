@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 
 import uvicorn
 
-from backend.app.main import app
+from backend.app.model_app import create_model_app
 from backend.app.team_data import SourceConversation, store_group
 
 
@@ -31,7 +31,12 @@ def main() -> None:
             }
         )
         store_group(conversation["group_id"], [source])
-        uvicorn.run(app, host="127.0.0.1", port=8765)
+        if os.getenv("CQA_E2E_PARTICIPANT3") == "1":
+            from backend.app.participant3_demo import seed
+
+            seed()
+        # Keep all four modules present without reading credentials or enabling inference.
+        uvicorn.run(create_model_app(None, "model_disabled"), host="127.0.0.1", port=8765)
 
 
 if __name__ == "__main__":

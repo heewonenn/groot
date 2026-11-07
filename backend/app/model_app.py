@@ -59,8 +59,13 @@ def configured_evaluator() -> tuple[ModelEvaluator | None, str | None]:
 
 
 def create_model_app(evaluator: ModelEvaluator | None, reason: str | None = None):
-    if evaluator:
-        evaluator.store.recover()
+    try:
+        # A restart can disable the provider while an earlier audit is still running.
+        # Recover local history independently of model readiness; never resume inference.
+        (evaluator.store if evaluator else RunStore()).recover()
+    except (sqlite3.Error, OSError):
+        # Match the shared app: health remains available when storage is offline.
+        pass
     application = create_app(evaluator)
     router = APIRouter(prefix="/api", tags=["model-audit"], route_class=DataRoute)
 
