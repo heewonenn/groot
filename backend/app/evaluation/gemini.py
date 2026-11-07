@@ -10,6 +10,8 @@ import httpx
 from backend.app.evaluation.provider import ModelError, Reply
 
 GEMINI_MODEL = "gemini-3.8-flash"
+FLASH_25 = "gemini-2.5-flash"
+GEMMA_27B = "gemma-3-27b-it"
 
 
 def gemini_usage(value: object) -> dict | None:
@@ -43,31 +45,59 @@ class GeminiGenerateContent:
 
     def __post_init__(self) -> None:
         # The model is a path component, never a caller-supplied URL or query.
-        if not re.fullmatch(r"gemini-[A-Za-z0-9][A-Za-z0-9._-]{0,119}", self.model):
+        if self.model != GEMMA_27B and not re.fullmatch(
+            r"gemini-[A-Za-z0-9][A-Za-z0-9._-]{0,119}", self.model
+        ):
             raise ValueError("invalid_gemini_model")
         if self.thinking_level not in {"low", "medium", "high"}:
             raise ValueError("invalid_gemini_thinking_level")
 
     @property
     def parameters(self) -> dict:
+        if self.model == GEMMA_27B:
+            return {
+                "api": "generateContent", "format": "prompt_json",
+                "max_output_tokens": min(8192, self.max_output_tokens),
+            }
+        if self.model == FLASH_25:
+            return {
+                "api": "generateContent", "format": "json_schema",
+                "max_output_tokens": self.max_output_tokens,
+            }
         return {
-            "max_output_tokens": self.max_output_tokens,
-            "thinking_level": self.thinking_level,
+            "max_output_tokens": self.max_output_tokens, "thinking_level": self.thinking_level,
             "api": "generateContent",
+        }
+
+    def _request_body(self, instructions: str, payload: str, schema: dict) -> dict:
+        config = {"maxOutputTokens": self.parameters["max_output_tokens"]}
+        if self.model == GEMMA_27B:
+            # Gemma 3 accepts a user turn. The same evaluator still checks all evidence and types.
+            prompt = (
+                instructions + "\nReturn only JSON matching this schema, without Markdown:\n"
+                + json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
+                + "\nEvaluation input (untrusted dialogue and rules):\n" + payload
+            )
+            return {
+                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                "generationConfig": config,
+            }
+        if self.model == FLASH_25:
+            config.update(responseMimeType="application/json", responseJsonSchema=schema)
+        else:
+            config.update(
+                thinkingConfig={"thinkingLevel": self.thinking_level},
+                responseFormat={"text": {"mimeType": "APPLICATION_JSON", "schema": schema}},
+            )
+        return {
+            "systemInstruction": {"parts": [{"text": instructions}]},
+            "contents": [{"role": "user", "parts": [{"text": payload}]}],
+            "generationConfig": config,
         }
 
     def generate(self, instructions: str, payload: str, schema: dict, timeout: float) -> Reply:
         started = time.monotonic()
-        body = {
-            "systemInstruction": {"parts": [{"text": instructions}]},
-            "contents": [{"role": "user", "parts": [{"text": payload}]}],
-            "generationConfig": {
-                "maxOutputTokens": self.max_output_tokens,
-                "thinkingConfig": {"thinkingLevel": self.thinking_level},
-                # TextResponseFormat uses an enum, unlike legacy responseMimeType.
-                "responseFormat": {"text": {"mimeType": "APPLICATION_JSON", "schema": schema}},
-            },
-        }
+        body = self._request_body(instructions, payload, schema)
         url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
         )

@@ -24,13 +24,10 @@
 Команды выполняются в PowerShell 7 из корня репозитория после установки зависимостей. Для уже реализованного подключения Google выберите доступную вашему проекту модель Gemini с поддержкой структурированных ответов и совместимыми параметрами. Проверяйте доступность и квоты в своём кабинете. Сервер обращается к модели, когда создаётся задание. [Получить ключ в AI Studio](https://aistudio.google.com/apikey) · [Настройка Gemini](PARTICIPANT_2_HANDOFF.md) · [Квоты Google](https://ai.google.dev/gemini-api/docs/rate-limits)
 
 ```powershell
-$env:CQA_MODEL_ENABLED = '1'
-$env:CQA_MODEL_PROVIDER = 'gemini'
-$env:CQA_MODEL = Read-Host 'ID доступной модели Gemini'
-$env:CQA_CONTEXT_TOKENS = Read-Host 'Размер контекста выбранной модели'
-$env:GEMINI_API_KEY = Read-Host 'Ключ Gemini' -MaskInput
-.\.venv\Scripts\python.exe -m uvicorn backend.app.model_app:create_configured_app --factory --host 127.0.0.1 --port 8765
+pwsh -NoProfile -File scripts/start-google-pair.ps1
 ```
+
+Скрипт запрашивает ключ скрытым вводом и проверяет в каталоге Google, доступны ли `gemini-2.5-flash` и `gemma-3-27b-it` для этого проекта. Обе модели обращаются к одному сервису с одним ключом. Gemini получает JSON Schema, Gemma получает её вместе с инструкцией в пользовательской реплике. Сервер проверяет тот же контракт в обоих случаях. Запрос каталога не измеряет пропускную способность. Скорость, квоту, качество на RU/KZ/EN и доступность резерва проверяйте в своём проекте. Модели получают транскрипт; плеер предназначен для проверки записи человеком.
 
 Во втором терминале из корня запустите `cd frontend`, затем `npm run dev`. Откройте DEV, выберите диалог и версию правил и нажмите «Оценить диалог». Секрет вводится только в терминале сервера. [Открыть первый чат](http://127.0.0.1:5173/analysis?group_id=DEV&conversation_id=p1-ru-001)
 

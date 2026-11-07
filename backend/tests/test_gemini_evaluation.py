@@ -11,7 +11,13 @@ from fastapi.testclient import TestClient
 
 from backend.app import model_app, team_data
 from backend.app.evaluation.contract import INSTRUCTIONS, canonical, output_schema
-from backend.app.evaluation.gemini import GEMINI_MODEL, GeminiGenerateContent, gemini_usage
+from backend.app.evaluation.gemini import (
+    FLASH_25,
+    GEMINI_MODEL,
+    GEMMA_27B,
+    GeminiGenerateContent,
+    gemini_usage,
+)
 from backend.app.evaluation.provider import ModelError, OpenAIResponses
 
 EXAMPLES = Path(__file__).resolve().parents[2] / "docs/contracts/examples"
@@ -96,6 +102,56 @@ def test_gemini_wire_format_and_thinking_usage():
     assert reply.usage == {"input_tokens": 12, "output_tokens": 12}
     assert reply.model == GEMINI_MODEL
     assert "synthetic-secret" not in repr(provider)
+
+
+def test_google_pair_revalidates_gemma_after_flash_quota(configured):
+    configured.setenv("CQA_MODEL", FLASH_25)
+    configured.setenv("CQA_FALLBACK_PROVIDER", "gemini")
+    configured.setenv("CQA_FALLBACK_MODEL", GEMMA_27B)
+    configured.setenv("CQA_FALLBACK_CONTEXT_TOKENS", "128000")
+    evaluator, reason = model_app.configured_evaluator()
+    assert reason is None
+    calls = []
+
+    def handler(request):
+        model = request.url.path.split("/")[-1].split(":")[0]
+        calls.append(model)
+        assert request.headers["x-goog-api-key"] == "synthetic-key-not-real"
+        body = json.loads(request.content)
+        generation = body["generationConfig"]
+        assert "thinkingConfig" not in generation
+        if model == FLASH_25:
+            assert generation["responseMimeType"] == "application/json"
+            assert generation["responseJsonSchema"] == output_schema()
+            assert body["systemInstruction"]["parts"][0]["text"] == INSTRUCTIONS
+            return httpx.Response(429)
+        assert model == GEMMA_27B
+        assert "systemInstruction" not in body
+        assert generation == {"maxOutputTokens": 8192}
+        assert body["contents"][0]["role"] == "user"
+        prompt = body["contents"][0]["parts"][0]["text"]
+        assert INSTRUCTIONS in prompt and "criterion_id" in prompt
+        payload = json.loads(prompt.split("Evaluation input (untrusted dialogue and rules):\n")[1])
+        result = answers()
+        if len(calls) == 2:
+            assert len(payload["checklist"]["criteria"]) == 8
+            result["criteria"][0]["evidence"][0]["message_id"] = "made-up-id"
+        else:
+            assert payload["correction"]["error_code"].startswith("answer_")
+        return httpx.Response(200, json=envelope(canonical(result), modelVersion=GEMMA_27B))
+
+    transport = httpx.MockTransport(handler)
+    evaluator.provider.transport = transport
+    evaluator.fallback_provider.transport = transport
+    rules = json.loads((EXAMPLES.parent / "checklists/chat-v1.json").read_bytes())
+    result = evaluator("google-pair-qa", example("conversation.synthetic.json"), rules, {})
+    assert calls == [FLASH_25, GEMMA_27B, GEMMA_27B]
+    assert result["generation"]["model_id"] == GEMMA_27B
+    assert len(result["criteria"]) == 8
+    attempts = evaluator.store.get("google-pair-qa")["metadata"]["attempts"]
+    assert attempts[0]["error_code"] == "provider_rate_limit"
+    assert attempts[1]["error_code"].startswith("answer_")
+    assert attempts[2]["status"] == "completed"
 
 
 @pytest.mark.parametrize(
