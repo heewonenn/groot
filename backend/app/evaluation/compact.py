@@ -5,6 +5,7 @@ import json
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
+from backend.app.evaluation.contract import GROUNDING_INSTRUCTIONS
 from backend.app.evaluation.provider import ModelError
 from backend.app.schemas.checklists import ChecklistVersion
 
@@ -22,8 +23,9 @@ checked range, or context. Use integer first and last (inclusive), equal for a s
 For NA explain the condition and cite evidence.
 Set timing=true only if the conclusion uses timestamps. Audio was not analysed. Do not judge
 diction, intonation or ASR errors from text. Evaluate observable consultation and next steps.
-Only assert product facts verified by supplied official fragments; otherwise flag uncertainty
-in your reason. Use review for conclusions requiring unavailable evidence. Never compute scores."""
+Only assert product facts verified by supplied official fragments. Use review for conclusions
+requiring unavailable evidence. Never compute scores.
+""" + GROUNDING_INSTRUCTIONS
 
 
 def _object(properties: dict) -> dict:
