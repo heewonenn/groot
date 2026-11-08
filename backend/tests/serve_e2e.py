@@ -36,7 +36,10 @@ def main() -> None:
 
             seed()
         # Keep all four modules present without reading credentials or enabling inference.
-        uvicorn.run(create_model_app(None, "model_disabled"), host="127.0.0.1", port=8765)
+        uvicorn.run(
+            create_model_app(None, "model_disabled"), host="127.0.0.1",
+            port=int(os.getenv("CQA_E2E_API_PORT", "8765")),
+        )
 
 
 if __name__ == "__main__":
