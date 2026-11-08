@@ -158,7 +158,7 @@ def test_google_pair_revalidates_gemma_after_flash_quota(configured):
 
 @pytest.mark.parametrize("gemma_status,restriction", [
     (200, None), (429, None), (429, "google_only"),
-    (200, "gemma_only"), (429, "gemma_only"),
+    (200, "gemma_only"), (429, "gemma_only"), (200, "model"), (429, "model"),
 ])
 def test_gemma4_and_dots_have_independent_routes(configured, gemma_status, restriction):
     dots = "dots-studio/dots-3-note-preview:free"
@@ -192,20 +192,32 @@ def test_gemma4_and_dots_have_independent_routes(configured, gemma_status, restr
     for route in (evaluator.provider, evaluator.quota_provider, evaluator.fallback_provider):
         route.transport = transport
     rules = json.loads((EXAMPLES.parent / "checklists/chat-v1.json").read_bytes())
-    args = ("quota-qa", turns, rules,
-            {restriction: True} if restriction else {})
+    settings = {restriction: True} if restriction else {}
+    if restriction == "model":
+        settings = {"model": GEMMA_4_31B}
+    args = ("quota-qa", turns, rules, settings)
     if restriction and gemma_status == 429:
         with pytest.raises(ModelError, match="provider_rate_limit"):
             evaluator(*args)
     else:
         result = evaluator(*args)
         assert result["generation"]["model_id"] == (GEMMA_4_31B if gemma_status == 200 else dots)
-    expected = [GEMMA_4_31B] if restriction == "gemma_only" else [GEMINI_MODEL, GEMMA_4_31B]
+    direct = restriction in {"gemma_only", "model"}
+    expected = [GEMMA_4_31B] if direct else [GEMINI_MODEL, GEMMA_4_31B]
     if gemma_status == 429 and not restriction:
         expected.append(dots)
     assert calls == expected
     audit = evaluator.store.get("quota-qa")["metadata"]
     assert [a["configured_model"] for a in audit["attempts"]] == expected
+
+
+def test_explicit_gemma_unavailable_does_not_call_flash(configured):
+    evaluator, reason = model_app.configured_evaluator()
+    assert reason is None
+    rules = json.loads((EXAMPLES.parent / "checklists/chat-v1.json").read_bytes())
+    with pytest.raises(ModelError, match="provider_model_unavailable"):
+        evaluator("no-gemma", example("conversation.synthetic.json"), rules, {"model": GEMMA_4_31B})
+    assert evaluator.store.get("no-gemma")["metadata"]["attempts"] == []
 
 
 @pytest.mark.parametrize(

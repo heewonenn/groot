@@ -63,6 +63,8 @@ class ModelEvaluator:
         if self.provider.name == "gemini":
             expected["google_only"] = True
             expected["gemma_only"] = True
+            if settings.get("model") == GEMMA_4_31B:
+                expected["model"] = GEMMA_4_31B
         # Do not silently ignore a requested model, sampling or audio configuration.
         if any(
             value is not None and (key not in expected or value != expected[key])
@@ -103,7 +105,9 @@ class ModelEvaluator:
             "context_token_limit": self.context_token_limit,
             "context_budget_used": None,
         }
-        gemma_only = settings.get("gemma_only") is True
+        gemma_only = settings.get("gemma_only") is True or (
+            self.provider.name == "gemini" and settings.get("model") == GEMMA_4_31B
+        )
         google_only = settings.get("google_only") is True or gemma_only
         allow_fallback = self.fallback_provider is not None and (
             not google_only or self.fallback_provider.name == "gemini"
