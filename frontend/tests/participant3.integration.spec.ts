@@ -36,14 +36,15 @@ async function openCard(page: Page, cid = primary) {
   await expect(page.getByRole('heading', { name: 'Оценка качества', exact: true })).toBeVisible()
 }
 
-async function openReview(page: Page, criterion: string, cid = primary) {
+async function openReview(page: Page, criterion: string, cid = primary,
+  comment = 'Синтетическая проверка интерфейса: пересмотр критерия ' + criterion) {
   const snapshot = await card(page, cid)
   const title = snapshot.checklist.criteria.find(rule => rule.id === criterion)!.title
   await page.getByRole('button', { name: 'Открыть критерий ' + title, exact: true }).click()
   await page.getByRole('button', { name: 'Оспорить оценку', exact: true }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
-  await dialog.getByLabel('Комментарий к апелляции', { exact: true }).fill('Синтетическая проверка интерфейса: пересмотр критерия ' + criterion)
+  await dialog.getByLabel('Комментарий к апелляции', { exact: true }).fill(comment)
   await dialog.getByRole('button', { name: 'Сохранить обращение', exact: true }).click()
   await expect(dialog.getByRole('heading', { name: 'Решение проверяющего', exact: true })).toBeVisible()
   return dialog
@@ -132,6 +133,43 @@ test('partial AI answer can be resolved by a human without manufacturing an orig
   expect(after.evaluation.original_result).toBeNull()
   expect(after.evaluation.model_result).toEqual(before.evaluation.model_result)
   expect(after.evaluation.final_result?.total).toBe('85.38')
+})
+
+test('open appeal awaiting a source survives reload and reopening without changing any assessment', async ({ page }) => {
+  const cid = 'synthetic-en-001'
+  const comment = 'Учебный пример: ожидается официальный источник; решение не принято.'
+  const decisions: string[] = []
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/decision')) decisions.push(request.url())
+  })
+  await openCard(page, cid)
+  const before = await card(page, cid)
+  const dialog = await openReview(page, '04', cid, comment)
+  await expect(dialog.getByRole('button', { name: 'Применить решение', exact: true })).toBeDisabled()
+  await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click()
+  const pending = page.locator('.an-pending-appeal')
+  await expect(pending.getByText(comment, { exact: true })).toBeVisible()
+  const opened = await card(page, cid)
+  expect(opened.appeals).toHaveLength(1)
+  expect(opened.appeals[0]).toMatchObject({ status: 'open', comment, decision: null })
+  await page.reload()
+  await expect(pending.getByText(comment, { exact: true })).toBeVisible()
+  await pending.getByRole('button', { name: 'Рассмотреть', exact: true }).click()
+  await expect(dialog.getByRole('heading', { name: 'Решение проверяющего', exact: true })).toBeVisible()
+  await expect(dialog.locator('.an-appeal-comment')).toContainText(comment)
+  await expect(dialog.getByLabel('Обоснование решения', { exact: true })).toHaveValue('')
+  await expect(dialog.getByRole('button', { name: 'Применить решение', exact: true })).toBeDisabled()
+  await dialog.getByRole('button', { name: 'Закрыть', exact: true }).click()
+  const after = await card(page, cid)
+  expect(after.appeals).toEqual(opened.appeals)
+  expect(after.evaluation).toEqual(before.evaluation)
+  expect(after.final_answers).toEqual(before.final_answers)
+  expect(after.revision).toBe(before.revision)
+  expect(after.final_status).toBe(before.final_status)
+  expect(decisions).toEqual([])
+  expect(errors).toEqual([])
 })
 
 test('official PDF export reports an invalid demo dataset and does not download fake results', async ({ page }) => {
