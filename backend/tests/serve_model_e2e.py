@@ -122,7 +122,9 @@ def main() -> None:
             input_usd_per_million=1, output_usd_per_million=2,
         )
         application = create_model_app(evaluator, "model_disabled" if evaluator is None else None)
-        uvicorn.run(application, host="127.0.0.1", port=8765)
+        uvicorn.run(
+            application, host="127.0.0.1", port=int(os.getenv("CQA_E2E_API_PORT", "8765")),
+        )
 
 
 if __name__ == "__main__":
