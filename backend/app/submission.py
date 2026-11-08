@@ -108,6 +108,11 @@ def run_jobs(
         job = post(client, "/api/evaluation-jobs", json=body, headers={"Idempotency-Key": key})
         roots.append(job["job_id"])
         print(f"{version} · {len(ids)} · job_id={job['job_id']}", flush=True)
+    wait_jobs(client, roots, deadline)
+    return roots
+
+
+def wait_jobs(client: httpx.Client, roots: list[str], deadline: float) -> None:
     pending = set(roots)
     while pending:
         for job_id in sorted(pending):
@@ -123,7 +128,6 @@ def run_jobs(
             if remaining <= 0:
                 raise ValueError("Истекло время ожидания. Задания сохранены; повторите команду.")
             time.sleep(min(2, remaining))
-    return roots
 
 
 def job_status(group: str) -> None:
