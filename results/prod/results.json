@@ -448,10 +448,96 @@
     },
     {
       "conversation_id": "p2-ru-002",
-      "status": "error",
-      "criteria": [],
-      "score": null,
-      "error": "Не удалось получить и проверить ответ модели."
+      "status": "ok",
+      "criteria": [
+        {
+          "criterion_id": "contact",
+          "value": true,
+          "rationale": "Оператор поздоровалась и представилась в первом ответе.",
+          "evidence_turns": [
+            10
+          ]
+        },
+        {
+          "criterion_id": "discovery",
+          "value": null,
+          "rationale": "Данных для ответа хватало с самого начала.",
+          "evidence_turns": [
+            1
+          ]
+        },
+        {
+          "criterion_id": "identification",
+          "value": null,
+          "rationale": "Запрос не требовал идентификации.",
+          "evidence_turns": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "criterion_id": "consultation",
+          "value": 10.0,
+          "rationale": "Часть запроса закрыта (инструкция по обновлению данных), но существенный вопрос о возможности вывода средств остался без ответа.",
+          "evidence_turns": [
+            10,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "criterion_id": "empathy",
+          "value": false,
+          "rationale": "Оператор проигнорировал описание неудобства и повторный вопрос клиента, завершив диалог без эмпатии.",
+          "evidence_turns": [
+            13,
+            14
+          ]
+        },
+        {
+          "criterion_id": "dialogue",
+          "value": 4.0,
+          "rationale": "Клиенту пришлось дважды переспрашивать про вывод средств, так как оператор игнорировал суть вопроса.",
+          "evidence_turns": [
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "criterion_id": "closure",
+          "value": true,
+          "rationale": "Оператор предложил дальнейшую помощь и попрощался.",
+          "evidence_turns": [
+            14
+          ]
+        },
+        {
+          "criterion_id": "critical",
+          "value": false,
+          "rationale": "Грубых нарушений не выявлено.",
+          "evidence_turns": [
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        }
+      ],
+      "score": {
+        "final_score": 47.69,
+        "critical_flag": false
+      }
     },
     {
       "conversation_id": "p2-ru-003",
@@ -549,10 +635,90 @@
     },
     {
       "conversation_id": "p2-ru-004",
-      "status": "error",
-      "criteria": [],
-      "score": null,
-      "error": "Не удалось получить и проверить ответ модели."
+      "status": "ok",
+      "criteria": [
+        {
+          "criterion_id": "contact",
+          "value": false,
+          "rationale": "Оператор не поздоровался и не представился в первом сообщении.",
+          "evidence_turns": [
+            10
+          ]
+        },
+        {
+          "criterion_id": "discovery",
+          "value": false,
+          "rationale": "Оператор не уточнил детали и начал ответ с бессвязной фразы, не проявив должного внимания к запросу.",
+          "evidence_turns": [
+            10
+          ]
+        },
+        {
+          "criterion_id": "identification",
+          "value": false,
+          "rationale": "Оператор сообщил о наличии ограничения по конкретному счету клиента до проведения идентификации личности.",
+          "evidence_turns": [
+            12,
+            13
+          ]
+        },
+        {
+          "criterion_id": "consultation",
+          "value": 5.0,
+          "rationale": "Оператор дал общую подсказку посмотреть детали в приложении, но не объяснил причину ограничения и способ его снятия, после чего закрыл чат.",
+          "evidence_turns": [
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "criterion_id": "empathy",
+          "value": false,
+          "rationale": "Оператор проигнорировал повторную проблему клиента («Опять не получается»), не проявил эмпатии и не был вежлив.",
+          "evidence_turns": [
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "criterion_id": "dialogue",
+          "value": 4.0,
+          "rationale": "Первая реплика оператора была бессвязной, из-за чего клиенту пришлось переспрашивать смысл сказанного.",
+          "evidence_turns": [
+            10,
+            11
+          ]
+        },
+        {
+          "criterion_id": "closure",
+          "value": false,
+          "rationale": "Оператор закрыл чат без подведения итогов, предложения дальнейшей помощи и прощания.",
+          "evidence_turns": [
+            14,
+            15
+          ]
+        },
+        {
+          "criterion_id": "critical",
+          "value": false,
+          "rationale": "Грубых нарушений не выявлено.",
+          "evidence_turns": [
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        }
+      ],
+      "score": {
+        "final_score": 11.0,
+        "critical_flag": false
+      }
     }
   ]
 }
