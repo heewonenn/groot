@@ -176,6 +176,27 @@ def test_retry_only_failed_and_preserve_interruption(setup_jobs):
     assert client.get("/api/evaluations/" + orig_eid).status_code == 200
 
 
+def test_gemma_only_retry_pins_one_attempt_and_preserves_root_settings(setup_jobs):
+    runner, client = setup_jobs
+
+    def evaluate(eid, conv, rules, settings):
+        if not settings.get("gemma_only"):
+            raise TimeoutError()
+        return adapter(eid, conv, rules, settings)
+
+    runner.evaluator = evaluate
+    root = settled(client, create(client, [MID], "gemma-root").json()["job_id"])
+    assert root["status"] == "failed"
+    url = "/api/evaluation-jobs/" + root["job_id"] + "/retry"
+    headers = {"Idempotency-Key": "pinned-retry"}
+    child = client.post(url, params={"gemma_only": "true"}, headers=headers).json()
+    saved = settled(client, child["job_id"])
+    assert saved["status"] == "completed"
+    assert saved["model_config"] == root["model_config"]
+    assert client.post(url, params={"gemma_only": "true"}, headers=headers).json() == child
+    assert client.post(url, headers=headers).status_code == 409
+
+
 def test_unresolved_no_false_score(setup_jobs):
     runner, client = setup_jobs
 
