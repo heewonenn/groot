@@ -78,6 +78,7 @@ def measure(labels: dict, store: RunStore, split: str = "heldout") -> dict:
     if labels.get("is_ground_truth") is not True:
         raise ValueError("human_ground_truth_not_confirmed")
     counters = defaultdict(Metrics)
+    comparisons = []
     seen = set()
     for case in labels["cases"]:
         if case["split"] != split:
@@ -151,6 +152,54 @@ def measure(labels: dict, store: RunStore, split: str = "heldout") -> dict:
                 raise ValueError("incomplete_human_label")
             cid = label["criterion_id"]
             prediction = predictions.get(cid)
+            differences = []
+            if prediction is None:
+                differences.append("prediction_missing")
+            elif prediction["decision_status"] != "evaluated":
+                differences.append("prediction_unresolved")
+            elif prediction["applicability"] != label["applicability"]:
+                differences.append("applicability")
+            elif (
+                prediction["value"] != label["value"]
+                or isinstance(prediction["value"], bool) != isinstance(label["value"], bool)
+            ):
+                differences.append("value")
+            # Different wording or evidence IDs alone do not establish a semantic error.
+            if prediction and label.get("prediction_evidence_correct") is False:
+                differences.append("evidence_not_supported")
+            na_review = (
+                label.get("prediction_na_reason_correct")
+                if prediction and prediction["applicability"] == "not_applicable"
+                else None
+            )
+            if na_review is False:
+                differences.append("na_reason_not_supported")
+            comparisons.append(
+                {
+                    "group_id": case["group_id"],
+                    "conversation_id": case["conversation_id"],
+                    "checklist_version_id": case["checklist_version_id"],
+                    "evaluation_id": case["evaluation_id"],
+                    "criterion_id": cid,
+                    "reviewer": case["reviewer"],
+                    "differences": differences,
+                    "human": {
+                        k: label[k] for k in ("applicability", "value", "reason", "evidence_ids")
+                    },
+                    "prediction": (
+                        {
+                            k: prediction.get(k)
+                            for k in (
+                                "decision_status", "applicability", "value", "reason",
+                                "na_reason", "evidence", "knowledge_references",
+                            )
+                        }
+                        if prediction else None
+                    ),
+                    "prediction_evidence_correct": label.get("prediction_evidence_correct"),
+                    "prediction_na_reason_correct": na_review,
+                }
+            )
             normalized_error = None
             if (
                 prediction
@@ -188,10 +237,14 @@ def measure(labels: dict, store: RunStore, split: str = "heldout") -> dict:
         "split": split,
         "conversations": len(seen),
         "metrics": {k: v.report() for k, v in sorted(counters.items())},
+        "comparisons": comparisons,
+        "disagreement_count": sum(bool(row["differences"]) for row in comparisons),
         "limitations": "Model predictions before appeals. Failed/unresolved runs remain in "
         "coverage and all-labeled accuracy. MAE uses only valid pairs and reports "
         "their count. Semantic evidence needs separate human review. Empty splits "
-        "have no metrics. DEV has no KZ/EN voice calls.",
+        "have no metrics. DEV has no KZ/EN voice calls. Comparison reasons and evidence "
+        "may contain private text; keep this report outside Git. Wording differences "
+        "alone are not errors; N/A reasons and semantic evidence require human review.",
     }
 
 

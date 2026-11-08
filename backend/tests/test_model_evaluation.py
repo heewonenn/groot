@@ -549,7 +549,10 @@ def test_quality_counts_unresolved_and_rejects_invalid_labels(setup):
     assert {k: report["metrics"]["overall"][k] for k in expected} == expected
     assert report["metrics"]["overall"]["completion_rate"] == 0
     assert report["metrics"]["overall"]["total_mae"] is None
+    assert report["comparisons"][0]["differences"] == ["prediction_unresolved"]
+    assert report["disagreement_count"] == 1
     assert measure(template, setup[2], "development")["metrics"] == {}
+    assert measure(template, setup[2], "development")["comparisons"] == []
     case["criteria"][0]["value"] = 0  # A boolean rule cannot accept a numeric label.
     with pytest.raises(ValueError):
         measure(template, setup[2])
@@ -659,6 +662,9 @@ def test_quality_failed_run_stays_in_denominator(setup):
     assert overall["total_mae"] is None
     assert overall["flag_precision"] is None and overall["flag_recall"] is None
     assert overall["total_cost_usd"] is None
+    assert report["disagreement_count"] == 8
+    assert all(r["differences"] == ["prediction_missing"] for r in report["comparisons"])
+    assert all(r["prediction"] is None for r in report["comparisons"])
 
 
 def test_quality_completed_calculation_and_slices(setup):
@@ -673,3 +679,52 @@ def test_quality_completed_calculation_and_slices(setup):
     assert overall["semantic_evidence_supported_fraction"] is None
     assert overall == report["metrics"]["language:RU"]
     assert overall == report["metrics"]["channel:agent chat"]
+    assert report["disagreement_count"] == 0
+    assert len(report["comparisons"]) == 8
+    assert report["comparisons"][0]["prediction_evidence_correct"] is None
+
+
+def test_quality_comparison_keeps_na_reasons_and_manual_evidence_review(setup):
+    provider = Scripted([answers()])
+    provider.live = True
+    ModelEvaluator(provider, setup[2])("compare-quality", setup[0], setup[1], {})
+    labels = reviewed_labels(setup, "compare-quality")
+    case = labels["cases"][0]
+    contact = case["criteria"][0]
+    contact["value"] = not contact["value"]
+    contact["prediction_evidence_correct"] = False
+    # The model marked identification N/A; the human marks it applicable.
+    identification = next(a for a in case["criteria"] if a["criterion_id"] == "03")
+    identification.update(applicability="applicable", value=True)
+    report = measure(labels, setup[2])
+    rows = {r["criterion_id"]: r for r in report["comparisons"]}
+    assert rows["01"]["differences"] == ["value", "evidence_not_supported"]
+    assert rows["03"]["differences"] == ["applicability"]
+    assert rows["03"]["human"]["reason"] == identification["reason"]
+    assert rows["01"]["evaluation_id"] == "compare-quality"
+    assert rows["01"]["human"]["evidence_ids"] == contact["evidence_ids"]
+    assert rows["01"]["prediction"]["evidence"] == answers()["criteria"][0]["evidence"]
+    assert report["disagreement_count"] == 2
+
+
+def test_quality_matching_na_can_still_have_unsupported_reason(setup):
+    output = answers()
+    answer = next(a for a in output["criteria"] if a["criterion_id"] == "03")
+    answer.update(
+        applicability="not_applicable", value=None,
+        na_reason="Synthetic general question", reason="Synthetic general question",
+    )
+    provider = Scripted([output])
+    provider.live = True
+    ModelEvaluator(provider, setup[2])("na-quality", setup[0], setup[1], {})
+    labels = reviewed_labels(setup, "na-quality")
+    label = next(a for a in labels["cases"][0]["criteria"] if a["criterion_id"] == "03")
+    label.update(
+        applicability="not_applicable", value=None, prediction_na_reason_correct=False,
+    )
+    report = measure(labels, setup[2])
+    row = next(r for r in report["comparisons"] if r["criterion_id"] == "03")
+    assert row["differences"] == ["na_reason_not_supported"]
+    assert row["prediction"]["na_reason"] == "Synthetic general question"
+    assert report["metrics"]["overall"]["accuracy_all_labeled"] == 1
+    assert report["disagreement_count"] == 1
