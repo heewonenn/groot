@@ -14,6 +14,7 @@ from backend.app.evaluation.contract import (
     prepare,
     validate_result,
 )
+from backend.app.evaluation.gemini import GEMMA_4_31B
 from backend.app.evaluation.knowledge import Knowledge
 from backend.app.evaluation.provider import ModelError, Provider, token_usage
 from backend.app.evaluation.store import RunStore
@@ -61,6 +62,7 @@ class ModelEvaluator:
         }
         if self.provider.name == "gemini":
             expected["google_only"] = True
+            expected["gemma_only"] = True
         # Do not silently ignore a requested model, sampling or audio configuration.
         if any(
             value is not None and (key not in expected or value != expected[key])
@@ -101,7 +103,8 @@ class ModelEvaluator:
             "context_token_limit": self.context_token_limit,
             "context_budget_used": None,
         }
-        google_only = settings.get("google_only") is True
+        gemma_only = settings.get("gemma_only") is True
+        google_only = settings.get("google_only") is True or gemma_only
         allow_fallback = self.fallback_provider is not None and (
             not google_only or self.fallback_provider.name == "gemini"
         )
@@ -126,6 +129,11 @@ class ModelEvaluator:
         snapshot = None
         try:
             self._settings(settings)
+            if gemma_only:
+                routes = [(p, limit) for p, limit in routes
+                          if p.name == "gemini" and p.model == GEMMA_4_31B]
+                if not routes:
+                    raise ModelError("provider_model_unavailable")
             # Validate before retrieval; unknown fields and signed audio URLs are excluded.
             payload, version = prepare(conversation, rules, [])
             if self.knowledge:
@@ -197,7 +205,7 @@ class ModelEvaluator:
                     "number": attempt_number,
                     "provider": provider.name,
                     "configured_model": provider.model,
-                    "fallback": route_index > 0,
+                    "fallback": provider is not self.provider,
                     "provider_parameters": parameters,
                     "context_budget_used": budget,
                     "status": "running",

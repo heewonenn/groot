@@ -156,8 +156,11 @@ def test_google_pair_revalidates_gemma_after_flash_quota(configured):
     assert attempts[2]["status"] == "completed"
 
 
-@pytest.mark.parametrize("gemma_status,google_only", [(200, False), (429, False), (429, True)])
-def test_gemma4_and_dots_have_independent_routes(configured, gemma_status, google_only):
+@pytest.mark.parametrize("gemma_status,restriction", [
+    (200, None), (429, None), (429, "google_only"),
+    (200, "gemma_only"), (429, "gemma_only"),
+])
+def test_gemma4_and_dots_have_independent_routes(configured, gemma_status, restriction):
     dots = "dots-studio/dots-3-note-preview:free"
     turns = example("conversation.synthetic.json")
     short_reply = canonical(compact_answers(turns))
@@ -190,15 +193,15 @@ def test_gemma4_and_dots_have_independent_routes(configured, gemma_status, googl
         route.transport = transport
     rules = json.loads((EXAMPLES.parent / "checklists/chat-v1.json").read_bytes())
     args = ("quota-qa", turns, rules,
-            {"google_only": True} if google_only else {})
-    if google_only and gemma_status == 429:
+            {restriction: True} if restriction else {})
+    if restriction and gemma_status == 429:
         with pytest.raises(ModelError, match="provider_rate_limit"):
             evaluator(*args)
     else:
         result = evaluator(*args)
         assert result["generation"]["model_id"] == (GEMMA_4_31B if gemma_status == 200 else dots)
-    expected = [GEMINI_MODEL, GEMMA_4_31B]
-    if gemma_status == 429 and not google_only:
+    expected = [GEMMA_4_31B] if restriction == "gemma_only" else [GEMINI_MODEL, GEMMA_4_31B]
+    if gemma_status == 429 and not restriction:
         expected.append(dots)
     assert calls == expected
     audit = evaluator.store.get("quota-qa")["metadata"]
