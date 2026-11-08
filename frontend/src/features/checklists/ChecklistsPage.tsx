@@ -7,6 +7,13 @@ import type { ChecklistContent, ChecklistDraft, ChecklistSummary, ChecklistVersi
 import './ChecklistsPage.css'
 
 const uid = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 8)}`
+function updateLocation(checklist: string, version = 'draft') {
+  const url = new URL(window.location.href)
+  url.searchParams.set('checklist', checklist)
+  if (version === 'draft') url.searchParams.delete('version')
+  else url.searchParams.set('version', version)
+  window.history.replaceState(null, '', url)
+}
 function validation(content: ChecklistContent, publish: boolean): string {
   if (!content.title.trim()) return 'Укажите название чек-листа.'
   if (!content.channels.length) return 'Выберите хотя бы один канал.'
@@ -56,15 +63,18 @@ export default function ChecklistsPage() {
   useEffect(() => {
     if (!selected) return
     const url = new URL(window.location.href)
-    url.searchParams.set('checklist', selected)
-    window.history.replaceState(null, '', url)
+    // Keep a deep link on initial load, but clear another checklist's version.
+    if (url.searchParams.get('checklist') !== selected) updateLocation(selected)
   }, [selected])
   useEffect(() => {
     if (!selected) return
     let active = true
     Promise.all([checklistsApi.draft(selected), checklistsApi.versions(selected)]).then(([nextDraft, nextVersions]) => {
       if (!active) return
-      setDraft(nextDraft); setContent(nextDraft.content); setVersions(nextVersions); setView('draft'); setLoadingEditor(false)
+      const requested = new URLSearchParams(window.location.search).get('version')
+      const nextView = nextVersions.find(version => version.checklist_version_id === requested)?.checklist_version_id ?? 'draft'
+      setDraft(nextDraft); setContent(nextDraft.content); setVersions(nextVersions); setView(nextView); setLoadingEditor(false)
+      updateLocation(selected, nextView)
     }).catch(failure => { if (active) { setError(errorMessage(failure)); setLoadingEditor(false) } })
     return () => { active = false }
   }, [selected, reload])
@@ -142,7 +152,7 @@ export default function ChecklistsPage() {
         {error && <div className="cq-error" role="alert"><strong>Действие не выполнено</strong><p>{error}</p><button className="cq-button cq-button-secondary" disabled={busy} onClick={() => void retry()}>Повторить загрузку</button></div>}
         {notice && <p className="cq-success" role="status"><Check size={18} />{notice}</p>}
         {loadingList || (selected && loadingEditor) ? <div className="cq-empty" role="status"><span className="cq-loading" />Загружаем правила…</div> : !selected ? <div className="cq-empty"><ClipboardList size={32} /><h2>Пока нет чек-листов</h2><p>Создайте первый чек-лист, чтобы настроить критерии оценки.</p></div> : ready && <>
-          <div className="cq-toolbar"><div className="cq-segmented" aria-label="Раздел чек-листа"><button aria-pressed={mode === 'edit'} onClick={() => setMode('edit')}>Редактор</button><button aria-pressed={mode === 'calculate'} onClick={() => setMode('calculate')}>Проверка расчёта</button></div><label className="cq-version-select"><FileClock size={16} />Версия<select aria-label="Версия чек-листа" disabled={busy} value={view} onChange={event => { setView(event.target.value); setError('') }}><option value="draft">Текущий черновик{dirty ? ' • не сохранён' : ''}</option>{versions.map(version => <option key={version.checklist_version_id} value={version.checklist_version_id}>Версия {version.version} — сохранена</option>)}</select></label></div>
+          <div className="cq-toolbar"><div className="cq-segmented" aria-label="Раздел чек-листа"><button aria-pressed={mode === 'edit'} onClick={() => setMode('edit')}>Редактор</button><button aria-pressed={mode === 'calculate'} onClick={() => setMode('calculate')}>Проверка расчёта</button></div><label className="cq-version-select"><FileClock size={16} />Версия<select aria-label="Версия чек-листа" disabled={busy} value={view} onChange={event => { setView(event.target.value); updateLocation(selected, event.target.value); setError('') }}><option value="draft">Текущий черновик{dirty ? ' • не сохранён' : ''}</option>{versions.map(version => <option key={version.checklist_version_id} value={version.checklist_version_id}>Версия {version.version} — сохранена</option>)}</select></label></div>
           {readOnly && <div className="cq-info"><FileClock size={18} /><span>Сохранённая версия доступна только для просмотра. Для изменений откройте текущий черновик.</span></div>}
           {mode === 'calculate' ? calculationVersion ? <><p className="cq-help">Расчёт использует <strong>{calculationVersion.checklist_version_id}</strong>. Несохранённые изменения черновика не учитываются.</p><CalculationPanel key={calculationVersion.checklist_version_id} version={calculationVersion} /></> : <div className="cq-empty"><h2>Сначала сохраните версию</h2><p>Для воспроизводимого расчёта нужны сохранённые правила.</p><button className="cq-button cq-button-primary" onClick={() => setMode('edit')}>Открыть редактор</button></div> : <>
             <section className="cq-card cq-metadata" aria-label="Настройки чек-листа">
